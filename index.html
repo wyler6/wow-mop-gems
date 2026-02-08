@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MoP Gem Calculator</title>
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --card: #1c2333; --border: #30363d;
+  --text: #e6edf3; --text-dim: #8b949e; --accent: #58a6ff;
+  --red: #ff4444; --yellow: #ffaa00; --blue: #4488ff; --orange: #ff8800;
+  --green: #44cc44; --purple: #aa44ff; --meta-gold: #e6cc80;
+  --quality-rare: #0070dd; --quality-epic: #a335ee; --quality-legendary: #ff8000;
+  --good: #3fb950; --bad: #f85149;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: 'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+.app { max-width:1100px; margin:0 auto; padding:12px; }
+header { text-align:center; padding:16px 0 8px; border-bottom:1px solid var(--border); margin-bottom:12px; }
+header h1 { font-size:1.8em; color:var(--meta-gold); letter-spacing:1px; }
+header .sub { color:var(--text-dim); font-size:.9em; }
+nav { display:flex; gap:4px; margin-bottom:16px; flex-wrap:wrap; }
+nav button { background:var(--surface); color:var(--text-dim); border:1px solid var(--border); padding:8px 16px; cursor:pointer; border-radius:6px 6px 0 0; font-size:.9em; transition:.2s; }
+nav button:hover { color:var(--text); background:var(--card); }
+nav button.active { background:var(--card); color:var(--accent); border-bottom-color:var(--card); font-weight:600; }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+.section { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:12px; }
+.section h2 { font-size:1.1em; color:var(--accent); margin-bottom:10px; }
+.section h3 { font-size:.95em; color:var(--text-dim); margin:12px 0 6px; }
+label { display:inline-flex; align-items:center; gap:6px; margin-right:16px; cursor:pointer; font-size:.9em; }
+input[type=checkbox] { accent-color:var(--accent); }
+select, input[type=number], input[type=text] { background:var(--surface); color:var(--text); border:1px solid var(--border); padding:6px 8px; border-radius:4px; font-size:.85em; }
+select { cursor:pointer; }
+input[type=number] { width:70px; text-align:right; }
+textarea { width:100%; min-height:80px; background:var(--surface); color:var(--text); border:1px solid var(--border); border-radius:4px; padding:8px; font-family:monospace; font-size:.8em; resize:vertical; }
+button.btn { background:var(--accent); color:#fff; border:none; padding:8px 20px; border-radius:4px; cursor:pointer; font-size:.9em; font-weight:600; }
+button.btn:hover { opacity:.85; }
+button.btn:disabled { opacity:.5; cursor:not-allowed; }
+.stat-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px; }
+.stat-row { display:flex; align-items:center; justify-content:space-between; gap:6px; padding:3px 0; }
+.stat-row .stat-label { font-size:.85em; color:var(--text-dim); min-width:80px; }
+.prof-row { display:flex; gap:16px; flex-wrap:wrap; padding:4px 0; }
+table { width:100%; border-collapse:collapse; font-size:.85em; }
+th { text-align:left; padding:6px 8px; background:var(--surface); color:var(--text-dim); font-weight:600; border-bottom:1px solid var(--border); position:sticky; top:0; }
+td { padding:5px 8px; border-bottom:1px solid var(--border); vertical-align:middle; }
+tr:hover td { background:rgba(88,166,255,.05); }
+.gem-color { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:4px; vertical-align:middle; }
+.gem-color.red { background:var(--red); } .gem-color.yellow { background:var(--yellow); }
+.gem-color.blue { background:var(--blue); } .gem-color.orange { background:var(--orange); }
+.gem-color.green { background:var(--green); } .gem-color.purple { background:var(--purple); }
+.gem-color.meta { background:var(--meta-gold); } .gem-color.prismatic { background:linear-gradient(135deg,var(--red),var(--blue),var(--yellow)); }
+.gem-color.cogwheel { background:#888; }
+.socket { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border:2px solid; border-radius:3px; margin:0 2px; font-size:.7em; }
+.socket.red { border-color:var(--red); color:var(--red); } .socket.yellow { border-color:var(--yellow); color:var(--yellow); }
+.socket.blue { border-color:var(--blue); color:var(--blue); } .socket.meta { border-color:var(--meta-gold); color:var(--meta-gold); }
+.socket.prismatic { border-color:#aaa; color:#aaa; } .socket.cogwheel { border-color:#888; color:#888; }
+.verdict { padding:8px 12px; border-radius:6px; font-weight:600; text-align:center; margin-top:8px; }
+.verdict.match { background:rgba(63,185,80,.15); color:var(--good); border:1px solid rgba(63,185,80,.3); }
+.verdict.stack { background:rgba(248,81,73,.15); color:var(--bad); border:1px solid rgba(248,81,73,.3); }
+.score { font-weight:600; color:var(--meta-gold); }
+.current-gem { color:var(--text-dim); }
+.optimal-gem { color:var(--good); }
+.suboptimal { color:var(--bad); }
+.badge { display:inline-block; padding:1px 6px; border-radius:3px; font-size:.75em; font-weight:600; }
+.badge.match { background:rgba(63,185,80,.2); color:var(--good); }
+.badge.stack { background:rgba(248,81,73,.2); color:var(--bad); }
+#import-status { margin-top:8px; font-size:.85em; }
+#import-status.success { color:var(--good); }
+#import-status.error { color:var(--bad); }
+#import-status.loading { color:var(--yellow); }
+.eval-form { display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start; }
+.eval-form .socket-inputs { display:flex; flex-direction:column; gap:6px; }
+.eval-results { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+.eval-card { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:12px; }
+.eval-card h4 { margin-bottom:8px; font-size:.9em; }
+.summary-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px; margin-top:8px; }
+.summary-stat { background:var(--surface); padding:8px; border-radius:4px; display:flex; justify-content:space-between; font-size:.85em; }
+.swap-list { margin-top:12px; }
+.swap-item { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:.85em; border-bottom:1px solid var(--border); }
+.swap-item .arrow { color:var(--accent); }
+.gear-table { overflow-x:auto; }
+.gear-row { display:grid; grid-template-columns:120px 180px 1fr 1fr auto; gap:8px; padding:8px; border-bottom:1px solid var(--border); align-items:center; font-size:.85em; }
+.gear-row.header { font-weight:600; color:var(--text-dim); background:var(--surface); border-radius:4px 4px 0 0; position:sticky; top:0; }
+.gear-slot { color:var(--accent); font-weight:500; }
+.item-name { color:var(--quality-epic); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.no-sockets { color:var(--text-dim); font-style:italic; }
+@media(max-width:700px) {
+  .eval-form, .eval-results { grid-template-columns:1fr; }
+  .gear-row { grid-template-columns:80px 1fr; }
+  .stat-grid { grid-template-columns:1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <h1>MoP Gem Calculator</h1>
+  <div class="sub">Mists of Pandaria Classic &mdash; Gem Optimization Tool</div>
+</header>
+<nav>
+  <button class="active" data-tab="setup">Setup &amp; Import</button>
+  <button data-tab="recommender">Gem Recommender</button>
+  <button data-tab="evaluator">Socket Evaluator</button>
+  <button data-tab="planner">Gear Planner</button>
+</nav>
+
+<!-- TAB 1: SETUP & IMPORT -->
+<div id="tab-setup" class="tab-content active">
+  <div class="section">
+    <h2>Import from Addon</h2>
+    <textarea id="import-data" placeholder="Paste your addon gear export JSON here..."></textarea>
+    <div style="margin-top:8px"><button class="btn" id="import-btn">Import</button></div>
+    <div id="import-status"></div>
+  </div>
+  <div class="section">
+    <h2>Class &amp; Spec</h2>
+    <select id="spec-select"><option value="">-- Select Spec --</option></select>
+  </div>
+  <div class="section">
+    <h2>Stat Weights</h2>
+    <div class="stat-grid" id="stat-weights"></div>
+  </div>
+  <div class="section">
+    <h2>Professions</h2>
+    <div class="prof-row">
+      <label><input type="checkbox" id="prof-jc"> Jewelcrafting</label>
+      <label><input type="checkbox" id="prof-eng"> Engineering</label>
+      <label><input type="checkbox" id="prof-bs"> Blacksmithing</label>
+    </div>
+  </div>
+</div>
+
+<!-- TAB 2: GEM RECOMMENDER -->
+<div id="tab-recommender" class="tab-content">
+  <div class="section">
+    <h2>Meta Gem Recommendation</h2>
+    <div id="meta-rec"></div>
+  </div>
+  <div class="section">
+    <h2>Best Gems by Socket Color</h2>
+    <div id="gem-rankings"></div>
+  </div>
+  <div class="section" id="jc-section" style="display:none">
+    <h2>Serpent's Eye (JC) Recommendations</h2>
+    <div id="jc-rankings"></div>
+  </div>
+</div>
+
+<!-- TAB 3: SOCKET EVALUATOR -->
+<div id="tab-evaluator" class="tab-content">
+  <div class="section">
+    <h2>Socket Bonus Evaluator</h2>
+    <p style="font-size:.85em;color:var(--text-dim);margin-bottom:10px">Add the sockets on a gear piece and its socket bonus to see whether matching colors is worth it.</p>
+    <div class="eval-form">
+      <div>
+        <h3>Sockets</h3>
+        <div class="socket-inputs" id="eval-sockets">
+          <div><select class="eval-socket-color"><option value="">--</option><option value="red">Red</option><option value="yellow">Yellow</option><option value="blue">Blue</option><option value="meta">Meta</option><option value="prismatic">Prismatic</option></select></div>
+        </div>
+        <button class="btn" style="margin-top:6px;padding:4px 12px;font-size:.8em" id="add-socket-btn">+ Add Socket</button>
+      </div>
+      <div>
+        <h3>Socket Bonus</h3>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span>+</span><input type="number" id="eval-bonus-val" value="120" min="0" style="width:60px">
+          <select id="eval-bonus-stat"></select>
+        </div>
+        <div style="margin-top:12px"><button class="btn" id="eval-btn">Evaluate</button></div>
+      </div>
+    </div>
+    <div id="eval-results"></div>
+  </div>
+</div>
+
+<!-- TAB 4: GEAR PLANNER -->
+<div id="tab-planner" class="tab-content">
+  <div class="section">
+    <h2>Gear Plan</h2>
+    <p style="font-size:.85em;color:var(--text-dim);margin-bottom:10px">Import gear on the Setup tab, or manually configure below. Socket data is fetched from Wowhead.</p>
+    <div id="gear-table"></div>
+  </div>
+  <div class="section">
+    <h2>Optimization Summary</h2>
+    <div id="opt-summary"></div>
+  </div>
+</div>
+</div>
+
+<script>
+// ============================= DATA =============================
+
+const STATS = ['strength','agility','intellect','stamina','hit','expertise','crit','haste','mastery','spirit','dodge','parry','pvppower','pvpresilience'];
+const STAT_LABELS = {strength:'Strength',agility:'Agility',intellect:'Intellect',stamina:'Stamina',hit:'Hit',expertise:'Expertise',crit:'Critical Strike',haste:'Haste',mastery:'Mastery',spirit:'Spirit',dodge:'Dodge',parry:'Parry',pvppower:'PvP Power',pvpresilience:'PvP Resilience'};
+const STAT_FROM_TOOLTIP = {'Strength':'strength','Agility':'agility','Intellect':'intellect','Stamina':'stamina','Hit':'hit','Expertise':'expertise','Critical Strike':'crit','Crit':'crit','Haste':'haste','Mastery':'mastery','Spirit':'spirit','Dodge':'dodge','Parry':'parry','PvP Power':'pvppower','PvP Resilience':'pvpresilience'};
+
+const SLOT_NAMES = ['Head','Neck','Shoulders','Back','Chest','Wrist','Hands','Waist','Legs','Feet','Ring 1','Ring 2','Trinket 1','Trinket 2','Main Hand','Off Hand'];
+
+// Socket matching: which gem colors can go in which socket
+const SOCKET_MATCH = {
+  red:['red','orange','purple'],yellow:['yellow','orange','green'],blue:['blue','green','purple'],
+  meta:['meta'],prismatic:['red','yellow','blue','orange','green','purple'],cogwheel:['cogwheel'],sha:['sha']
+};
+
+// Complete gem database
+const GEMS = [
+  // === RED (Primordial Ruby) ===
+  {id:76692,name:'Delicate Primordial Ruby',color:'red',stats:{agility:160},q:'rare'},
+  {id:76693,name:'Precise Primordial Ruby',color:'red',stats:{expertise:320},q:'rare'},
+  {id:76694,name:'Brilliant Primordial Ruby',color:'red',stats:{intellect:160},q:'rare'},
+  {id:76695,name:'Flashing Primordial Ruby',color:'red',stats:{parry:320},q:'rare'},
+  {id:76696,name:'Bold Primordial Ruby',color:'red',stats:{strength:160},q:'rare'},
+
+  // === YELLOW (Sun's Radiance) ===
+  {id:76697,name:"Smooth Sun's Radiance",color:'yellow',stats:{crit:320},q:'rare'},
+  {id:76698,name:"Subtle Sun's Radiance",color:'yellow',stats:{dodge:320},q:'rare'},
+  {id:76699,name:"Quick Sun's Radiance",color:'yellow',stats:{haste:320},q:'rare'},
+  {id:76700,name:"Fractured Sun's Radiance",color:'yellow',stats:{mastery:320},q:'rare'},
+  {id:76701,name:"Mystic Sun's Radiance",color:'yellow',stats:{pvpresilience:320},q:'rare'},
+
+  // === BLUE (River's Heart) ===
+  {id:76636,name:"Rigid River's Heart",color:'blue',stats:{hit:320},q:'rare'},
+  {id:76637,name:"Stormy River's Heart",color:'blue',stats:{pvppower:160},q:'rare'},
+  {id:76638,name:"Sparkling River's Heart",color:'blue',stats:{spirit:320},q:'rare'},
+  {id:76639,name:"Solid River's Heart",color:'blue',stats:{stamina:240},q:'rare'},
+
+  // === ORANGE (Vermilion Onyx) ===
+  {id:76658,name:'Deadly Vermilion Onyx',color:'orange',stats:{agility:80,crit:160},q:'rare'},
+  {id:76659,name:'Crafty Vermilion Onyx',color:'orange',stats:{expertise:160,crit:160},q:'rare'},
+  {id:76660,name:'Potent Vermilion Onyx',color:'orange',stats:{intellect:80,crit:160},q:'rare'},
+  {id:76661,name:'Inscribed Vermilion Onyx',color:'orange',stats:{strength:80,crit:160},q:'rare'},
+  {id:76662,name:'Polished Vermilion Onyx',color:'orange',stats:{agility:80,dodge:160},q:'rare'},
+  {id:76663,name:'Resolute Vermilion Onyx',color:'orange',stats:{expertise:160,dodge:160},q:'rare'},
+  {id:76664,name:'Stalwart Vermilion Onyx',color:'orange',stats:{parry:160,dodge:160},q:'rare'},
+  {id:76665,name:"Champion's Vermilion Onyx",color:'orange',stats:{strength:80,dodge:160},q:'rare'},
+  {id:76666,name:'Deft Vermilion Onyx',color:'orange',stats:{agility:80,haste:160},q:'rare'},
+  {id:76667,name:'Wicked Vermilion Onyx',color:'orange',stats:{expertise:160,haste:160},q:'rare'},
+  {id:76668,name:'Reckless Vermilion Onyx',color:'orange',stats:{intellect:80,haste:160},q:'rare'},
+  {id:76669,name:'Fierce Vermilion Onyx',color:'orange',stats:{strength:80,haste:160},q:'rare'},
+  {id:76670,name:'Adept Vermilion Onyx',color:'orange',stats:{agility:80,mastery:160},q:'rare'},
+  {id:76671,name:'Keen Vermilion Onyx',color:'orange',stats:{expertise:160,mastery:160},q:'rare'},
+  {id:76672,name:'Artful Vermilion Onyx',color:'orange',stats:{intellect:80,mastery:160},q:'rare'},
+  {id:76673,name:'Fine Vermilion Onyx',color:'orange',stats:{parry:160,mastery:160},q:'rare'},
+  {id:76674,name:'Skillful Vermilion Onyx',color:'orange',stats:{strength:80,mastery:160},q:'rare'},
+  {id:76675,name:'Lucent Vermilion Onyx',color:'orange',stats:{agility:80,pvpresilience:160},q:'rare'},
+  {id:76676,name:'Tenuous Vermilion Onyx',color:'orange',stats:{expertise:160,pvpresilience:160},q:'rare'},
+  {id:76677,name:'Willful Vermilion Onyx',color:'orange',stats:{intellect:80,pvpresilience:160},q:'rare'},
+  {id:76678,name:'Splendid Vermilion Onyx',color:'orange',stats:{parry:160,pvpresilience:160},q:'rare'},
+  {id:76679,name:'Resplendent Vermilion Onyx',color:'orange',stats:{strength:80,pvpresilience:160},q:'rare'},
+
+  // === GREEN (Wild Jade) ===
+  {id:76640,name:'Misty Wild Jade',color:'green',stats:{crit:160,spirit:160},q:'rare'},
+  {id:76641,name:'Piercing Wild Jade',color:'green',stats:{crit:160,hit:160},q:'rare'},
+  {id:76642,name:'Lightning Wild Jade',color:'green',stats:{haste:160,hit:160},q:'rare'},
+  {id:76643,name:"Sensei's Wild Jade",color:'green',stats:{mastery:160,hit:160},q:'rare'},
+  {id:76644,name:'Effulgent Wild Jade',color:'green',stats:{pvppower:160,mastery:160},q:'rare'},
+  {id:76645,name:'Zen Wild Jade',color:'green',stats:{mastery:160,spirit:160},q:'rare'},
+  {id:76646,name:'Balanced Wild Jade',color:'green',stats:{hit:160,pvpresilience:160},q:'rare'},
+  {id:76647,name:'Vivid Wild Jade',color:'green',stats:{pvppower:160,pvpresilience:160},q:'rare'},
+  {id:76648,name:'Turbid Wild Jade',color:'green',stats:{spirit:160,pvpresilience:160},q:'rare'},
+  {id:76649,name:'Radiant Wild Jade',color:'green',stats:{crit:160,pvpresilience:160},q:'rare'},
+  {id:76650,name:'Shattered Wild Jade',color:'green',stats:{haste:160,pvppower:160},q:'rare'},
+  {id:76651,name:'Energized Wild Jade',color:'green',stats:{haste:160,spirit:160},q:'rare'},
+  {id:76652,name:'Jagged Wild Jade',color:'green',stats:{crit:160,stamina:120},q:'rare'},
+  {id:76653,name:'Regal Wild Jade',color:'green',stats:{dodge:160,stamina:120},q:'rare'},
+  {id:76654,name:'Forceful Wild Jade',color:'green',stats:{haste:160,stamina:120},q:'rare'},
+  {id:76655,name:'Nimble Wild Jade',color:'green',stats:{dodge:160,hit:160},q:'rare'},
+  {id:76656,name:'Puissant Wild Jade',color:'green',stats:{mastery:160,stamina:120},q:'rare'},
+  {id:76657,name:'Steady Wild Jade',color:'green',stats:{hit:160,stamina:120},q:'rare'},
+
+  // === PURPLE (Imperial Amethyst) ===
+  {id:76680,name:'Glinting Imperial Amethyst',color:'purple',stats:{agility:80,hit:160},q:'rare'},
+  {id:76681,name:'Accurate Imperial Amethyst',color:'purple',stats:{expertise:160,hit:160},q:'rare'},
+  {id:76682,name:'Veiled Imperial Amethyst',color:'purple',stats:{intellect:80,hit:160},q:'rare'},
+  {id:76683,name:'Retaliating Imperial Amethyst',color:'purple',stats:{parry:160,hit:160},q:'rare'},
+  {id:76684,name:'Etched Imperial Amethyst',color:'purple',stats:{strength:80,hit:160},q:'rare'},
+  {id:76685,name:'Mysterious Imperial Amethyst',color:'purple',stats:{intellect:80,pvppower:160},q:'rare'},
+  {id:76686,name:'Purified Imperial Amethyst',color:'purple',stats:{intellect:80,spirit:160},q:'rare'},
+  {id:76687,name:'Shifting Imperial Amethyst',color:'purple',stats:{agility:80,stamina:120},q:'rare'},
+  {id:76688,name:"Guardian's Imperial Amethyst",color:'purple',stats:{expertise:160,stamina:120},q:'rare'},
+  {id:76689,name:'Timeless Imperial Amethyst',color:'purple',stats:{intellect:80,stamina:120},q:'rare'},
+  {id:76690,name:"Defender's Imperial Amethyst",color:'purple',stats:{parry:160,stamina:120},q:'rare'},
+  {id:76691,name:'Sovereign Imperial Amethyst',color:'purple',stats:{strength:80,stamina:120},q:'rare'},
+
+  // === META (Primal Diamond) ===
+  {id:76884,name:'Agile Primal Diamond',color:'meta',stats:{agility:216},effect:'3% Increased Critical Effect',q:'rare',role:'agidps'},
+  {id:76885,name:'Burning Primal Diamond',color:'meta',stats:{intellect:216},effect:'3% Increased Critical Effect',q:'rare',role:'casterdps'},
+  {id:76886,name:'Reverberating Primal Diamond',color:'meta',stats:{strength:216},effect:'3% Increased Critical Effect',q:'rare',role:'strdps'},
+  {id:76888,name:'Revitalizing Primal Diamond',color:'meta',stats:{spirit:432},effect:'3% Increased Critical Effect',q:'rare',role:'healer'},
+  {id:76879,name:'Ember Primal Diamond',color:'meta',stats:{intellect:216},effect:'+2% Maximum Mana',q:'rare',role:'healer'},
+  {id:76895,name:'Austere Primal Diamond',color:'meta',stats:{stamina:216},effect:'+2% Increased Armor',q:'rare',role:'tank'},
+  {id:76897,name:'Effulgent Primal Diamond',color:'meta',stats:{stamina:324},effect:'Reduces Spell Damage by 2%',q:'rare',role:'tank'},
+  {id:76887,name:'Fleet Primal Diamond',color:'meta',stats:{mastery:432},effect:'Minor Run Speed',q:'rare',role:'misc'},
+  {id:76890,name:'Destructive Primal Diamond',color:'meta',stats:{crit:432},effect:'1% Spell Reflect',q:'rare',role:'pvp'},
+  {id:76891,name:'Powerful Primal Diamond',color:'meta',stats:{stamina:324},effect:'Stun Duration -10%',q:'rare',role:'pvp'},
+  {id:76892,name:'Enigmatic Primal Diamond',color:'meta',stats:{crit:432},effect:'Snare Duration -10%',q:'rare',role:'pvp'},
+  {id:76893,name:'Impassive Primal Diamond',color:'meta',stats:{crit:432},effect:'Fear Duration -10%',q:'rare',role:'pvp'},
+  {id:76894,name:'Forlorn Primal Diamond',color:'meta',stats:{intellect:216},effect:'Silence Duration -10%',q:'rare',role:'pvp'},
+  {id:76896,name:'Eternal Primal Diamond',color:'meta',stats:{dodge:432},effect:'+1% Shield Block Value',q:'rare',role:'tank'},
+
+  // === LEGENDARY META ===
+  {id:95346,name:'Capacitive Primal Diamond',color:'meta',stats:{crit:324},effect:'Lightning damage proc on hit',q:'legendary',role:'physdps'},
+  {id:95345,name:'Courageous Primal Diamond',color:'meta',stats:{intellect:324},effect:'Free spells proc on heal',q:'legendary',role:'healer'},
+  {id:95347,name:'Sinister Primal Diamond',color:'meta',stats:{crit:324},effect:'30% Spell Haste proc',q:'legendary',role:'casterdps'},
+  {id:95344,name:'Indomitable Primal Diamond',color:'meta',stats:{stamina:324},effect:'20% Damage Reduction proc',q:'legendary',role:'tank'},
+
+  // === SERPENT'S EYE (JC Only) ===
+  {id:83141,name:"Bold Serpent's Eye",color:'red',stats:{strength:320},q:'epic',jc:true},
+  {id:83150,name:"Brilliant Serpent's Eye",color:'red',stats:{intellect:320},q:'epic',jc:true},
+  {id:83151,name:"Delicate Serpent's Eye",color:'red',stats:{agility:320},q:'epic',jc:true},
+  {id:83152,name:"Flashing Serpent's Eye",color:'red',stats:{parry:480},q:'epic',jc:true},
+  {id:83147,name:"Precise Serpent's Eye",color:'red',stats:{expertise:480},q:'epic',jc:true},
+  {id:83142,name:"Quick Serpent's Eye",color:'yellow',stats:{haste:480},q:'epic',jc:true},
+  {id:83143,name:"Fractured Serpent's Eye",color:'yellow',stats:{mastery:480},q:'epic',jc:true},
+  {id:83146,name:"Smooth Serpent's Eye",color:'yellow',stats:{crit:480},q:'epic',jc:true},
+  {id:83145,name:"Subtle Serpent's Eye",color:'yellow',stats:{dodge:480},q:'epic',jc:true},
+  {id:83144,name:"Rigid Serpent's Eye",color:'blue',stats:{hit:480},q:'epic',jc:true},
+  {id:83148,name:"Solid Serpent's Eye",color:'blue',stats:{stamina:480},q:'epic',jc:true},
+  {id:83149,name:"Sparkling Serpent's Eye",color:'blue',stats:{spirit:480},q:'epic',jc:true},
+
+  // === COGWHEEL (Engineering) ===
+  {id:77541,name:"Smooth Tinker's Gear",color:'cogwheel',stats:{crit:600},q:'rare'},
+  {id:77542,name:"Quick Tinker's Gear",color:'cogwheel',stats:{haste:600},q:'rare'},
+  {id:77543,name:"Fractured Tinker's Gear",color:'cogwheel',stats:{mastery:600},q:'rare'},
+  {id:77544,name:"Flashing Tinker's Gear",color:'cogwheel',stats:{parry:600},q:'rare'},
+  {id:77545,name:"Rigid Tinker's Gear",color:'cogwheel',stats:{hit:600},q:'rare'},
+  {id:77546,name:"Sparkling Tinker's Gear",color:'cogwheel',stats:{spirit:600},q:'rare'},
+  {id:77547,name:"Precise Tinker's Gear",color:'cogwheel',stats:{expertise:600},q:'rare'},
+  {id:77548,name:"Subtle Tinker's Gear",color:'cogwheel',stats:{dodge:600},q:'rare'},
+
+  // === SHA-TOUCHED ===
+  {id:89873,name:'Crystallized Dread',color:'prismatic',stats:{agility:500},q:'legendary',sha:true},
+  {id:89874,name:'Crystallized Terror',color:'prismatic',stats:{strength:500},q:'legendary',sha:true},
+  {id:89875,name:'Crystallized Horror',color:'prismatic',stats:{intellect:500},q:'legendary',sha:true},
+];
+
+// Build ID lookup
+const GEM_BY_ID = {};
+GEMS.forEach(g => { if(g.id) GEM_BY_ID[g.id] = g; });
+
+// Spec presets
+const PRESETS = [
+  // Melee DPS - Strength
+  {name:'Arms Warrior',cls:'warrior',spec:'arms',role:'strdps',meta:76886,w:{strength:1,crit:.8,mastery:.6,haste:.5,hit:.3,expertise:.3}},
+  {name:'Fury Warrior',cls:'warrior',spec:'fury',role:'strdps',meta:76886,w:{strength:1,crit:.7,haste:.65,mastery:.5,hit:.3,expertise:.3}},
+  {name:'Retribution Paladin',cls:'paladin',spec:'retribution',role:'strdps',meta:76886,w:{strength:1,haste:.75,mastery:.55,crit:.5,hit:.3,expertise:.3}},
+  {name:'Frost Death Knight',cls:'deathknight',spec:'frost',role:'strdps',meta:76886,w:{strength:1,haste:.7,crit:.65,mastery:.5,hit:.3,expertise:.3}},
+  {name:'Unholy Death Knight',cls:'deathknight',spec:'unholy',role:'strdps',meta:76886,w:{strength:1,haste:.7,mastery:.6,crit:.5,hit:.3,expertise:.3}},
+  // Melee DPS - Agility
+  {name:'Combat Rogue',cls:'rogue',spec:'combat',role:'agidps',meta:76884,w:{agility:1,haste:.8,crit:.5,mastery:.5,hit:.3,expertise:.3}},
+  {name:'Assassination Rogue',cls:'rogue',spec:'assassination',role:'agidps',meta:76884,w:{agility:1,mastery:.75,haste:.6,crit:.5,hit:.3,expertise:.3}},
+  {name:'Subtlety Rogue',cls:'rogue',spec:'subtlety',role:'agidps',meta:76884,w:{agility:1,haste:.8,crit:.6,mastery:.5,hit:.3,expertise:.3}},
+  {name:'Feral Druid',cls:'druid',spec:'feral',role:'agidps',meta:76884,w:{agility:1,mastery:.8,crit:.6,haste:.5,hit:.3,expertise:.3}},
+  {name:'Enhancement Shaman',cls:'shaman',spec:'enhancement',role:'agidps',meta:76884,w:{agility:1,haste:.7,mastery:.65,crit:.5,hit:.3,expertise:.3}},
+  {name:'Windwalker Monk',cls:'monk',spec:'windwalker',role:'agidps',meta:76884,w:{agility:1,haste:.7,crit:.6,mastery:.55,hit:.3,expertise:.3}},
+  // Ranged DPS - Agility
+  {name:'Beast Mastery Hunter',cls:'hunter',spec:'beastmastery',role:'agidps',meta:76884,w:{agility:1,crit:.7,haste:.6,mastery:.5,hit:.3,expertise:.3}},
+  {name:'Marksmanship Hunter',cls:'hunter',spec:'marksmanship',role:'agidps',meta:76884,w:{agility:1,crit:.8,haste:.5,mastery:.5,hit:.3,expertise:.3}},
+  {name:'Survival Hunter',cls:'hunter',spec:'survival',role:'agidps',meta:76884,w:{agility:1,crit:.6,mastery:.7,haste:.5,hit:.3,expertise:.3}},
+  // Caster DPS
+  {name:'Arcane Mage',cls:'mage',spec:'arcane',role:'casterdps',meta:76885,w:{intellect:1,mastery:.75,haste:.6,crit:.5,hit:.3}},
+  {name:'Fire Mage',cls:'mage',spec:'fire',role:'casterdps',meta:76885,w:{intellect:1,crit:.9,haste:.6,mastery:.5,hit:.3}},
+  {name:'Frost Mage',cls:'mage',spec:'frost',role:'casterdps',meta:76885,w:{intellect:1,haste:.8,crit:.55,mastery:.5,hit:.3}},
+  {name:'Affliction Warlock',cls:'warlock',spec:'affliction',role:'casterdps',meta:76885,w:{intellect:1,haste:.8,mastery:.6,crit:.5,hit:.3}},
+  {name:'Demonology Warlock',cls:'warlock',spec:'demonology',role:'casterdps',meta:76885,w:{intellect:1,mastery:.9,haste:.6,crit:.5,hit:.3}},
+  {name:'Destruction Warlock',cls:'warlock',spec:'destruction',role:'casterdps',meta:76885,w:{intellect:1,mastery:.8,haste:.6,crit:.5,hit:.3}},
+  {name:'Shadow Priest',cls:'priest',spec:'shadow',role:'casterdps',meta:76885,w:{intellect:1,haste:.8,crit:.6,mastery:.5,hit:.3}},
+  {name:'Elemental Shaman',cls:'shaman',spec:'elemental',role:'casterdps',meta:76885,w:{intellect:1,haste:.8,mastery:.6,crit:.5,hit:.3}},
+  {name:'Balance Druid',cls:'druid',spec:'balance',role:'casterdps',meta:76885,w:{intellect:1,haste:.8,mastery:.6,crit:.5,hit:.3}},
+  // Healers
+  {name:'Holy Paladin',cls:'paladin',spec:'holy',role:'healer',meta:76888,w:{intellect:1,spirit:.8,haste:.7,mastery:.5,crit:.4}},
+  {name:'Discipline Priest',cls:'priest',spec:'discipline',role:'healer',meta:76888,w:{intellect:1,spirit:.7,crit:.7,mastery:.6,haste:.5}},
+  {name:'Holy Priest',cls:'priest',spec:'holy',role:'healer',meta:76888,w:{intellect:1,spirit:.7,haste:.7,mastery:.55,crit:.5}},
+  {name:'Restoration Druid',cls:'druid',spec:'restoration',role:'healer',meta:76888,w:{intellect:1,spirit:.7,haste:.8,mastery:.5,crit:.5}},
+  {name:'Restoration Shaman',cls:'shaman',spec:'restoration',role:'healer',meta:76888,w:{intellect:1,spirit:.7,haste:.7,mastery:.6,crit:.5}},
+  {name:'Mistweaver Monk',cls:'monk',spec:'mistweaver',role:'healer',meta:76888,w:{intellect:1,spirit:.7,haste:.7,crit:.6,mastery:.5}},
+  // Tanks
+  {name:'Protection Warrior',cls:'warrior',spec:'protection',role:'tank',meta:76895,w:{stamina:.5,mastery:1,parry:.6,dodge:.5,hit:.4,expertise:.4}},
+  {name:'Protection Paladin',cls:'paladin',spec:'protection',role:'tank',meta:76895,w:{stamina:.5,mastery:1,haste:.7,parry:.5,dodge:.4,hit:.4,expertise:.4}},
+  {name:'Blood Death Knight',cls:'deathknight',spec:'blood',role:'tank',meta:76895,w:{stamina:.5,mastery:1,parry:.6,dodge:.5,haste:.4,hit:.4,expertise:.4}},
+  {name:'Guardian Druid',cls:'druid',spec:'guardian',role:'tank',meta:76895,w:{agility:1,mastery:.8,dodge:.7,stamina:.5,crit:.5,hit:.4,expertise:.4}},
+  {name:'Brewmaster Monk',cls:'monk',spec:'brewmaster',role:'tank',meta:76895,w:{agility:1,mastery:.8,crit:.6,haste:.6,stamina:.5,hit:.4,expertise:.4}},
+];
+
+// ============================= STATE =============================
+
+let weights = {};
+let gear = []; // [{itemId, itemName, gems:[], sockets:[], bonus:{stat,value}, fetched:bool}]
+let hasJC = false, hasEng = false, hasBS = false;
+
+// ============================= ALGORITHMS =============================
+
+function scoreGem(gem, w) {
+  let s = 0;
+  for (const [stat, val] of Object.entries(gem.stats)) {
+    s += val * (w[stat] || 0);
+  }
+  return s;
+}
+
+function bestGemForSocket(socketColor, w, opts = {}) {
+  const validColors = SOCKET_MATCH[socketColor] || SOCKET_MATCH.prismatic;
+  let best = null, bestScore = -1;
+  for (const gem of GEMS) {
+    if (gem.color === 'meta' || gem.color === 'cogwheel' || gem.sha) continue;
+    if (gem.jc && !opts.allowJC) continue;
+    if (!validColors.includes(gem.color)) continue;
+    const s = scoreGem(gem, w);
+    if (s > bestScore) { bestScore = s; best = gem; }
+  }
+  return { gem: best, score: bestScore };
+}
+
+function bestGemOverall(w, opts = {}) {
+  let best = null, bestScore = -1;
+  for (const gem of GEMS) {
+    if (gem.color === 'meta' || gem.color === 'cogwheel' || gem.sha) continue;
+    if (gem.jc && !opts.allowJC) continue;
+    const s = scoreGem(gem, w);
+    if (s > bestScore) { bestScore = s; best = gem; }
+  }
+  return { gem: best, score: bestScore };
+}
+
+function evaluateSocketBonus(sockets, bonus, w) {
+  if (!sockets.length) return null;
+  const bonusWeight = bonus && bonus.stat ? (w[bonus.stat] || 0) : 0;
+  const bonusScore = bonus ? bonus.value * bonusWeight : 0;
+
+  // Match strategy: best matching gem per socket + bonus
+  let matchScore = bonusScore;
+  const matchGems = [];
+  for (const sc of sockets) {
+    if (sc === 'meta') { matchGems.push(null); continue; }
+    const b = bestGemForSocket(sc, w);
+    matchScore += b.score;
+    matchGems.push(b.gem);
+  }
+
+  // Stack strategy: best overall gem in every socket, no bonus
+  let stackScore = 0;
+  const stackGems = [];
+  const overall = bestGemOverall(w);
+  for (const sc of sockets) {
+    if (sc === 'meta') { stackGems.push(null); continue; }
+    stackScore += overall.score;
+    stackGems.push(overall.gem);
+  }
+
+  return {
+    matchScore, stackScore, matchGems, stackGems, bonusScore,
+    verdict: matchScore >= stackScore ? 'match' : 'stack',
+    diff: Math.abs(matchScore - stackScore)
+  };
+}
+
+function rankedGemsForSocket(socketColor, w) {
+  const validColors = SOCKET_MATCH[socketColor] || SOCKET_MATCH.prismatic;
+  const ranked = [];
+  for (const gem of GEMS) {
+    if (gem.color === 'meta' || gem.color === 'cogwheel' || gem.sha || gem.jc) continue;
+    if (!validColors.includes(gem.color)) continue;
+    ranked.push({ gem, score: scoreGem(gem, w) });
+  }
+  ranked.sort((a, b) => b.score - a.score);
+  return ranked.slice(0, 10);
+}
+
+function rankedMetas(w) {
+  const metas = GEMS.filter(g => g.color === 'meta');
+  return metas.map(g => ({ gem: g, score: scoreGem(g, w) })).sort((a, b) => b.score - a.score);
+}
+
+function rankedJCGems(w) {
+  const jcGems = GEMS.filter(g => g.jc);
+  return jcGems.map(g => ({ gem: g, score: scoreGem(g, w) })).sort((a, b) => b.score - a.score);
+}
+
+// ============================= WOWHEAD API =============================
+
+const itemCache = new Map();
+const gemTooltipCache = new Map();
+
+async function fetchItemTooltip(itemId) {
+  if (itemCache.has(itemId)) return itemCache.get(itemId);
+  try {
+    const res = await fetch(`https://nether.wowhead.com/mop-classic/tooltip/item/${itemId}?locale=0`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const parsed = parseItemTooltip(data);
+    itemCache.set(itemId, parsed);
+    return parsed;
+  } catch (e) {
+    console.error(`Failed to fetch item ${itemId}:`, e);
+    return { name: `Item #${itemId}`, sockets: [], bonus: null, quality: 0 };
+  }
+}
+
+function parseItemTooltip(data) {
+  const html = data.tooltip || '';
+  const sockets = [];
+  const socketRegex = /class="socket-(meta|red|yellow|blue|prismatic|cogwheel)[^"]*"/g;
+  let m;
+  while ((m = socketRegex.exec(html)) !== null) sockets.push(m[1]);
+
+  let bonus = null;
+  const bonusRegex = /Socket Bonus: \+<!--[^>]*-->(\d+) (.+?)</;
+  const bm = bonusRegex.exec(html);
+  if (bm) {
+    const stat = STAT_FROM_TOOLTIP[bm[2]] || bm[2].toLowerCase();
+    bonus = { value: parseInt(bm[1]), stat };
+  }
+
+  return { name: data.name || 'Unknown', sockets, bonus, quality: data.quality || 0 };
+}
+
+async function resolveGemFromAPI(gemId) {
+  if (GEM_BY_ID[gemId]) return GEM_BY_ID[gemId];
+  if (gemTooltipCache.has(gemId)) return gemTooltipCache.get(gemId);
+  try {
+    const res = await fetch(`https://nether.wowhead.com/mop-classic/tooltip/item/${gemId}?locale=0`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const gem = parseGemTooltip(data, gemId);
+    if (gem) { gemTooltipCache.set(gemId, gem); GEM_BY_ID[gemId] = gem; }
+    return gem;
+  } catch (e) { return null; }
+}
+
+function parseGemTooltip(data, id) {
+  const html = data.tooltip || '';
+  const name = data.name || `Gem #${id}`;
+  let color = 'prismatic';
+  if (/Matches a .*?Red/i.test(html) && /Yellow/i.test(html)) color = 'orange';
+  else if (/Matches a .*?Red/i.test(html) && /Blue/i.test(html)) color = 'purple';
+  else if (/Matches a .*?Yellow/i.test(html) && /Blue/i.test(html)) color = 'green';
+  else if (/Matches a .*?Red/i.test(html)) color = 'red';
+  else if (/Matches a .*?Yellow/i.test(html)) color = 'yellow';
+  else if (/Matches a .*?Blue/i.test(html)) color = 'blue';
+  if (/Meta Socket/i.test(html)) color = 'meta';
+
+  const stats = {};
+  const statRegex = /\+(\d+) ([\w\s]+?)(?:<|$)/g;
+  let sm;
+  while ((sm = statRegex.exec(html)) !== null) {
+    const key = STAT_FROM_TOOLTIP[sm[2].trim()];
+    if (key) stats[key] = parseInt(sm[1]);
+  }
+
+  return { id, name, color, stats, q: data.quality >= 5 ? 'legendary' : data.quality >= 4 ? 'epic' : 'rare' };
+}
+
+// ============================= IMPORT =============================
+
+async function handleImport() {
+  const raw = document.getElementById('import-data').value.trim();
+  const status = document.getElementById('import-status');
+  if (!raw) { status.textContent = 'Paste your addon export first.'; status.className = 'error'; return; }
+
+  let data;
+  try { data = JSON.parse(raw); } catch (e) {
+    status.textContent = 'Invalid JSON. Check your export data.'; status.className = 'error'; return;
+  }
+
+  status.textContent = 'Importing...'; status.className = 'loading';
+
+  // Auto-detect spec
+  const cls = (data.class || '').toLowerCase();
+  const spec = (data.spec || '').toLowerCase();
+  const preset = PRESETS.find(p => p.cls === cls && p.spec === spec)
+    || PRESETS.find(p => p.cls === cls)
+    || PRESETS.find(p => p.spec === spec);
+  if (preset) {
+    document.getElementById('spec-select').value = PRESETS.indexOf(preset);
+    applyPreset(preset);
+  }
+
+  // Auto-detect professions
+  if (data.professions) {
+    for (const prof of data.professions) {
+      const pn = (prof.name || '').toLowerCase();
+      if (pn.includes('jewel')) { document.getElementById('prof-jc').checked = true; hasJC = true; }
+      if (pn.includes('engineer')) { document.getElementById('prof-eng').checked = true; hasEng = true; }
+      if (pn.includes('blacksmith')) { document.getElementById('prof-bs').checked = true; hasBS = true; }
+    }
+  }
+
+  // Parse gear
+  const items = data.gear?.items || [];
+  gear = [];
+  for (let i = 0; i < SLOT_NAMES.length; i++) {
+    const item = items[i] || {};
+    gear.push({
+      slot: SLOT_NAMES[i],
+      itemId: item.id || 0,
+      itemName: '',
+      gemIds: item.gems || [],
+      gems: [],
+      sockets: [],
+      bonus: null,
+      fetched: false
+    });
+  }
+
+  // Resolve gem names from our database
+  for (const g of gear) {
+    for (const gid of g.gemIds) {
+      if (GEM_BY_ID[gid]) {
+        g.gems.push(GEM_BY_ID[gid]);
+      } else {
+        const resolved = await resolveGemFromAPI(gid);
+        g.gems.push(resolved || { id: gid, name: `Unknown #${gid}`, color: 'prismatic', stats: {} });
+      }
+    }
+  }
+
+  // Fetch item socket data from Wowhead
+  status.textContent = 'Fetching item data from Wowhead...'; status.className = 'loading';
+  for (const g of gear) {
+    if (!g.itemId) continue;
+    const info = await fetchItemTooltip(g.itemId);
+    g.itemName = info.name;
+    g.sockets = info.sockets;
+    g.bonus = info.bonus;
+    g.fetched = true;
+    await new Promise(r => setTimeout(r, 150));
+  }
+
+  status.textContent = `Imported ${data.name || 'character'} (${preset ? preset.name : cls + ' ' + spec}). ${gear.filter(g=>g.sockets.length>0).length} items with sockets found.`;
+  status.className = 'success';
+
+  renderGearPlanner();
+  updateRecommender();
+  document.getElementById('jc-section').style.display = hasJC ? '' : 'none';
+}
+
+// ============================= UI RENDERING =============================
+
+function initUI() {
+  // Populate spec dropdown
+  const sel = document.getElementById('spec-select');
+  PRESETS.forEach((p, i) => {
+    const opt = document.createElement('option');
+    opt.value = i; opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+
+  // Populate stat weight inputs
+  const grid = document.getElementById('stat-weights');
+  for (const stat of STATS) {
+    const row = document.createElement('div');
+    row.className = 'stat-row';
+    row.innerHTML = `<span class="stat-label">${STAT_LABELS[stat]}</span><input type="number" step="0.05" min="0" max="2" value="0" data-stat="${stat}">`;
+    grid.appendChild(row);
+  }
+
+  // Populate evaluator bonus stat dropdown
+  const bonusSel = document.getElementById('eval-bonus-stat');
+  for (const stat of STATS) {
+    const opt = document.createElement('option');
+    opt.value = stat; opt.textContent = STAT_LABELS[stat];
+    bonusSel.appendChild(opt);
+  }
+
+  // Event listeners
+  sel.addEventListener('change', () => {
+    const idx = parseInt(sel.value);
+    if (!isNaN(idx) && PRESETS[idx]) applyPreset(PRESETS[idx]);
+  });
+
+  document.querySelectorAll('#stat-weights input').forEach(inp => {
+    inp.addEventListener('change', () => {
+      weights[inp.dataset.stat] = parseFloat(inp.value) || 0;
+      updateRecommender();
+    });
+  });
+
+  document.getElementById('prof-jc').addEventListener('change', e => {
+    hasJC = e.target.checked;
+    document.getElementById('jc-section').style.display = hasJC ? '' : 'none';
+    updateRecommender();
+  });
+  document.getElementById('prof-eng').addEventListener('change', e => { hasEng = e.target.checked; });
+  document.getElementById('prof-bs').addEventListener('change', e => { hasBS = e.target.checked; });
+
+  document.getElementById('import-btn').addEventListener('click', handleImport);
+  document.getElementById('eval-btn').addEventListener('click', handleEvaluate);
+  document.getElementById('add-socket-btn').addEventListener('click', () => {
+    const container = document.getElementById('eval-sockets');
+    const div = document.createElement('div');
+    div.innerHTML = '<select class="eval-socket-color"><option value="">--</option><option value="red">Red</option><option value="yellow">Yellow</option><option value="blue">Blue</option><option value="meta">Meta</option><option value="prismatic">Prismatic</option></select>';
+    container.appendChild(div);
+  });
+
+  // Tab switching
+  document.querySelectorAll('nav button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'recommender') updateRecommender();
+      if (btn.dataset.tab === 'planner') renderGearPlanner();
+    });
+  });
+}
+
+function applyPreset(preset) {
+  weights = {};
+  STATS.forEach(s => weights[s] = 0);
+  for (const [s, v] of Object.entries(preset.w)) weights[s] = v;
+  document.querySelectorAll('#stat-weights input').forEach(inp => {
+    inp.value = weights[inp.dataset.stat] || 0;
+  });
+  updateRecommender();
+}
+
+function gemHTML(gem, showScore) {
+  if (!gem) return '<span class="no-sockets">-</span>';
+  const colorDot = `<span class="gem-color ${gem.color}"></span>`;
+  let statsStr = Object.entries(gem.stats).map(([s,v]) => `+${v} ${STAT_LABELS[s]||s}`).join(', ');
+  let html = `${colorDot}<strong>${gem.name}</strong> <span style="color:var(--text-dim)">(${statsStr})</span>`;
+  if (gem.effect) html += ` <span style="color:var(--green);font-size:.8em">${gem.effect}</span>`;
+  if (showScore !== undefined) html += ` <span class="score">[${showScore.toFixed(1)}]</span>`;
+  return html;
+}
+
+function socketHTML(color) {
+  return `<span class="socket ${color}">${color[0].toUpperCase()}</span>`;
+}
+
+function updateRecommender() {
+  // Meta recommendation
+  const metaDiv = document.getElementById('meta-rec');
+  const metas = rankedMetas(weights);
+  if (metas.length) {
+    let html = '<table><tr><th>Rank</th><th>Meta Gem</th><th>Score</th></tr>';
+    metas.slice(0, 6).forEach((m, i) => {
+      const qColor = m.gem.q === 'legendary' ? 'var(--quality-legendary)' : 'var(--meta-gold)';
+      html += `<tr><td>${i + 1}</td><td>${gemHTML(m.gem)}</td><td class="score">${m.score.toFixed(1)}</td></tr>`;
+    });
+    html += '</table>';
+    metaDiv.innerHTML = html;
+  }
+
+  // Gem rankings per socket color
+  const rankDiv = document.getElementById('gem-rankings');
+  let html = '';
+  for (const sc of ['red', 'yellow', 'blue']) {
+    const ranked = rankedGemsForSocket(sc, weights);
+    html += `<h3>${socketHTML(sc)} ${sc.charAt(0).toUpperCase() + sc.slice(1)} Socket</h3>`;
+    html += '<table><tr><th>#</th><th>Gem</th><th>Score</th></tr>';
+    ranked.forEach((r, i) => {
+      const bold = i === 0 ? 'style="background:rgba(63,185,80,.08)"' : '';
+      html += `<tr ${bold}><td>${i + 1}</td><td>${gemHTML(r.gem)}</td><td class="score">${r.score.toFixed(1)}</td></tr>`;
+    });
+    html += '</table>';
+  }
+  rankDiv.innerHTML = html;
+
+  // JC gems
+  if (hasJC) {
+    const jcDiv = document.getElementById('jc-rankings');
+    const jcRanked = rankedJCGems(weights);
+    let jcHtml = '<table><tr><th>#</th><th>Serpent\'s Eye</th><th>Score</th><th>Bonus vs Regular</th></tr>';
+    jcRanked.slice(0, 6).forEach((r, i) => {
+      const regular = GEMS.find(g => !g.jc && g.color === r.gem.color && Object.keys(g.stats).some(s => s in r.gem.stats));
+      const regScore = regular ? scoreGem(regular, weights) : 0;
+      const bonus = r.score - regScore;
+      jcHtml += `<tr><td>${i + 1}</td><td>${gemHTML(r.gem)}</td><td class="score">${r.score.toFixed(1)}</td><td style="color:var(--good)">+${bonus.toFixed(1)}</td></tr>`;
+    });
+    jcHtml += '</table>';
+    jcDiv.innerHTML = jcHtml;
+  }
+}
+
+function handleEvaluate() {
+  const socketSelects = document.querySelectorAll('.eval-socket-color');
+  const sockets = [];
+  socketSelects.forEach(s => { if (s.value) sockets.push(s.value); });
+  if (!sockets.length) return;
+
+  const bonusVal = parseInt(document.getElementById('eval-bonus-val').value) || 0;
+  const bonusStat = document.getElementById('eval-bonus-stat').value;
+  const bonus = bonusVal > 0 ? { value: bonusVal, stat: bonusStat } : null;
+
+  const result = evaluateSocketBonus(sockets, bonus, weights);
+  if (!result) return;
+
+  const resultsDiv = document.getElementById('eval-results');
+  let html = '<div class="eval-results">';
+
+  // Match column
+  html += '<div class="eval-card"><h4 style="color:var(--good)">Match Sockets</h4>';
+  result.matchGems.forEach((g, i) => {
+    if (g) html += `<div>${socketHTML(sockets[i])} &rarr; ${gemHTML(g)}</div>`;
+  });
+  if (bonus) html += `<div style="margin-top:6px;color:var(--accent)">+ Socket Bonus: +${bonus.value} ${STAT_LABELS[bonus.stat]||bonus.stat} (${result.bonusScore.toFixed(1)} pts)</div>`;
+  html += `<div style="margin-top:8px;font-size:1.1em" class="score">Total: ${result.matchScore.toFixed(1)}</div></div>`;
+
+  // Stack column
+  html += '<div class="eval-card"><h4 style="color:var(--bad)">Ignore Bonus (Stack Best)</h4>';
+  result.stackGems.forEach((g, i) => {
+    if (g) html += `<div>${socketHTML(sockets[i])} &rarr; ${gemHTML(g)}</div>`;
+  });
+  html += `<div style="margin-top:6px;color:var(--text-dim)">No socket bonus</div>`;
+  html += `<div style="margin-top:8px;font-size:1.1em" class="score">Total: ${result.stackScore.toFixed(1)}</div></div>`;
+
+  html += '</div>';
+
+  // Verdict
+  const verdictClass = result.verdict;
+  const verdictText = result.verdict === 'match'
+    ? `Match sockets! (+${result.diff.toFixed(1)} pts better)`
+    : `Ignore bonus and stack! (+${result.diff.toFixed(1)} pts better)`;
+  html += `<div class="verdict ${verdictClass}">${verdictText}</div>`;
+
+  resultsDiv.innerHTML = html;
+}
+
+function renderGearPlanner() {
+  const container = document.getElementById('gear-table');
+  if (!gear.length) {
+    container.innerHTML = '<p class="no-sockets">Import gear on the Setup tab to see your gear plan.</p>';
+    document.getElementById('opt-summary').innerHTML = '';
+    return;
+  }
+
+  let html = '<div class="gear-row header"><div>Slot</div><div>Item</div><div>Sockets &amp; Current Gems</div><div>Optimal Gems</div><div>Verdict</div></div>';
+
+  let totalCurrentScore = 0, totalOptimalScore = 0;
+  const swaps = [];
+  const statTotals = { current: {}, optimal: {} };
+
+  for (const g of gear) {
+    html += `<div class="gear-row"><div class="gear-slot">${g.slot}</div>`;
+    const qColor = g.fetched && g.itemName ? 'var(--quality-epic)' : 'var(--text-dim)';
+    html += `<div class="item-name" style="color:${qColor}">${g.itemName || (g.itemId ? `#${g.itemId}` : '—')}</div>`;
+
+    if (!g.sockets.length) {
+      html += '<div class="no-sockets">No sockets</div><div>—</div><div>—</div>';
+    } else {
+      // Current gems
+      html += '<div>';
+      g.sockets.forEach((sc, i) => {
+        html += `<div style="margin:2px 0">${socketHTML(sc)} `;
+        if (g.gems[i]) {
+          html += `<span class="current-gem">${g.gems[i].name}</span>`;
+          const s = scoreGem(g.gems[i], weights);
+          totalCurrentScore += s;
+          for (const [st, v] of Object.entries(g.gems[i].stats)) {
+            statTotals.current[st] = (statTotals.current[st] || 0) + v;
+          }
+        } else {
+          html += '<span class="no-sockets">empty</span>';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+
+      // Optimal gems
+      const eval_ = evaluateSocketBonus(g.sockets, g.bonus, weights);
+      html += '<div>';
+      if (eval_) {
+        const optGems = eval_.verdict === 'match' ? eval_.matchGems : eval_.stackGems;
+        const optScore = eval_.verdict === 'match' ? eval_.matchScore : eval_.stackScore;
+        totalOptimalScore += optScore;
+        optGems.forEach((og, i) => {
+          if (!og) return;
+          const isSame = g.gems[i] && g.gems[i].name === og.name;
+          const cls = isSame ? '' : 'optimal-gem';
+          html += `<div style="margin:2px 0">${socketHTML(g.sockets[i])} <span class="${cls}">${og.name}</span></div>`;
+          if (!isSame && g.gems[i]) {
+            swaps.push({ slot: g.slot, from: g.gems[i].name, to: og.name });
+          }
+          for (const [st, v] of Object.entries(og.stats)) {
+            statTotals.optimal[st] = (statTotals.optimal[st] || 0) + v;
+          }
+        });
+        if (eval_.verdict === 'match' && g.bonus) {
+          statTotals.optimal[g.bonus.stat] = (statTotals.optimal[g.bonus.stat] || 0) + g.bonus.value;
+        }
+      }
+      html += '</div>';
+
+      // Verdict badge
+      html += '<div>';
+      if (eval_) {
+        const badge = eval_.verdict === 'match' ? 'match' : 'stack';
+        const label = eval_.verdict === 'match' ? 'Match' : 'Stack';
+        html += `<span class="badge ${badge}">${label}</span>`;
+        if (g.bonus && eval_.verdict === 'match') {
+          html += `<div style="font-size:.75em;color:var(--text-dim)">+${g.bonus.value} ${STAT_LABELS[g.bonus.stat]||g.bonus.stat}</div>`;
+        }
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
+
+  // Summary
+  const summaryDiv = document.getElementById('opt-summary');
+  let sHtml = '<h3>Stat Totals from Gems</h3><div class="summary-stats">';
+  const allStats = new Set([...Object.keys(statTotals.current), ...Object.keys(statTotals.optimal)]);
+  for (const st of STATS) {
+    if (!allStats.has(st)) continue;
+    const cur = statTotals.current[st] || 0;
+    const opt = statTotals.optimal[st] || 0;
+    const diff = opt - cur;
+    const diffStr = diff > 0 ? `<span style="color:var(--good)">+${diff}</span>` : diff < 0 ? `<span style="color:var(--bad)">${diff}</span>` : '';
+    sHtml += `<div class="summary-stat"><span>${STAT_LABELS[st]}</span><span>${cur} &rarr; ${opt} ${diffStr}</span></div>`;
+  }
+  sHtml += '</div>';
+
+  sHtml += `<div style="margin-top:12px;font-size:.9em">Current weighted score: <span class="score">${totalCurrentScore.toFixed(1)}</span> &rarr; Optimal: <span class="score">${totalOptimalScore.toFixed(1)}</span>`;
+  const scoreDiff = totalOptimalScore - totalCurrentScore;
+  if (scoreDiff > 0) sHtml += ` (<span style="color:var(--good)">+${scoreDiff.toFixed(1)} improvement</span>)`;
+  sHtml += '</div>';
+
+  // Swap shopping list
+  if (swaps.length) {
+    sHtml += '<div class="swap-list"><h3>Gem Swap Shopping List</h3>';
+    const gemCounts = {};
+    for (const s of swaps) {
+      gemCounts[s.to] = (gemCounts[s.to] || 0) + 1;
+      sHtml += `<div class="swap-item"><span class="gear-slot">${s.slot}</span> <span class="suboptimal">${s.from}</span> <span class="arrow">&rarr;</span> <span class="optimal-gem">${s.to}</span></div>`;
+    }
+    sHtml += '<h3 style="margin-top:12px">Gems to Buy</h3>';
+    for (const [name, count] of Object.entries(gemCounts)) {
+      sHtml += `<div style="font-size:.85em">${count}x <strong>${name}</strong></div>`;
+    }
+    sHtml += '</div>';
+  } else if (gear.some(g => g.sockets.length > 0)) {
+    sHtml += '<div style="margin-top:12px;color:var(--good)">Your gems are already optimal!</div>';
+  }
+
+  summaryDiv.innerHTML = sHtml;
+}
+
+// ============================= INIT =============================
+
+initUI();
+</script>
+</body>
+</html>
