@@ -472,47 +472,49 @@ const GEM_BY_ID = {};
 GEMS.forEach(g => { if(g.id) GEM_BY_ID[g.id] = g; });
 
 // Spec presets
+// Note: Secondary stat weights are calibrated so 160 primary stat (from red gem) > 320 secondary (from yellow gem)
+// This means secondary weights should be < 0.5 to ensure primary stat gems are recommended
 const PRESETS = [
   // Melee DPS - Strength
-  {name:'Arms Warrior',cls:'warrior',spec:'arms',role:'strdps',meta:76886,w:{strength:1,crit:.8,mastery:.6,haste:.5,hit:.3,expertise:.3}},
-  {name:'Fury Warrior',cls:'warrior',spec:'fury',role:'strdps',meta:76886,w:{strength:1,crit:.7,haste:.65,mastery:.5,hit:.3,expertise:.3}},
-  {name:'Retribution Paladin',cls:'paladin',spec:'retribution',role:'strdps',meta:76886,w:{strength:1,haste:.75,mastery:.55,crit:.5,hit:.3,expertise:.3}},
-  {name:'Frost Death Knight',cls:'deathknight',spec:'frost',role:'strdps',meta:76886,w:{strength:1,haste:.7,crit:.65,mastery:.5,hit:.3,expertise:.3}},
-  {name:'Unholy Death Knight',cls:'deathknight',spec:'unholy',role:'strdps',meta:76886,w:{strength:1,haste:.7,mastery:.6,crit:.5,hit:.3,expertise:.3}},
+  {name:'Arms Warrior',cls:'warrior',spec:'arms',role:'strdps',meta:76886,w:{strength:1,crit:.45,mastery:.35,haste:.30,hit:.15,expertise:.15}},
+  {name:'Fury Warrior',cls:'warrior',spec:'fury',role:'strdps',meta:76886,w:{strength:1,crit:.40,haste:.38,mastery:.30,hit:.15,expertise:.15}},
+  {name:'Retribution Paladin',cls:'paladin',spec:'retribution',role:'strdps',meta:76886,w:{strength:1,haste:.45,mastery:.35,crit:.30,hit:.15,expertise:.15}},
+  {name:'Frost Death Knight',cls:'deathknight',spec:'frost',role:'strdps',meta:76886,w:{strength:1,haste:.42,crit:.38,mastery:.30,hit:.15,expertise:.15}},
+  {name:'Unholy Death Knight',cls:'deathknight',spec:'unholy',role:'strdps',meta:76886,w:{strength:1,haste:.42,mastery:.35,crit:.30,hit:.15,expertise:.15}},
   // Melee DPS - Agility
-  {name:'Combat Rogue',cls:'rogue',spec:'combat',role:'agidps',meta:76884,w:{agility:1,haste:.8,crit:.5,mastery:.5,hit:.3,expertise:.3}},
-  {name:'Assassination Rogue',cls:'rogue',spec:'assassination',role:'agidps',meta:76884,w:{agility:1,mastery:.75,haste:.6,crit:.5,hit:.3,expertise:.3}},
-  {name:'Subtlety Rogue',cls:'rogue',spec:'subtlety',role:'agidps',meta:76884,w:{agility:1,haste:.8,crit:.6,mastery:.5,hit:.3,expertise:.3}},
-  {name:'Feral Druid',cls:'druid',spec:'feral',role:'agidps',meta:76884,w:{agility:1,mastery:.8,crit:.6,haste:.5,hit:.3,expertise:.3}},
-  {name:'Enhancement Shaman',cls:'shaman',spec:'enhancement',role:'agidps',meta:76884,w:{agility:1,haste:.7,mastery:.65,crit:.5,hit:.3,expertise:.3}},
-  {name:'Windwalker Monk',cls:'monk',spec:'windwalker',role:'agidps',meta:76884,w:{agility:1,haste:.7,crit:.6,mastery:.55,hit:.3,expertise:.3}},
+  {name:'Combat Rogue',cls:'rogue',spec:'combat',role:'agidps',meta:76884,w:{agility:1,haste:.45,crit:.30,mastery:.30,hit:.15,expertise:.15}},
+  {name:'Assassination Rogue',cls:'rogue',spec:'assassination',role:'agidps',meta:76884,w:{agility:1,mastery:.45,haste:.35,crit:.30,hit:.15,expertise:.15}},
+  {name:'Subtlety Rogue',cls:'rogue',spec:'subtlety',role:'agidps',meta:76884,w:{agility:1,haste:.45,crit:.35,mastery:.30,hit:.15,expertise:.15}},
+  {name:'Feral Druid',cls:'druid',spec:'feral',role:'agidps',meta:76884,w:{agility:1,mastery:.45,crit:.35,haste:.30,hit:.15,expertise:.15}},
+  {name:'Enhancement Shaman',cls:'shaman',spec:'enhancement',role:'agidps',meta:76884,w:{agility:1,haste:.42,mastery:.38,crit:.30,hit:.15,expertise:.15}},
+  {name:'Windwalker Monk',cls:'monk',spec:'windwalker',role:'agidps',meta:76884,w:{agility:1,haste:.42,crit:.35,mastery:.32,hit:.15,expertise:.15}},
   // Ranged DPS - Agility
-  {name:'Beast Mastery Hunter',cls:'hunter',spec:'beastmastery',role:'agidps',meta:76884,w:{agility:1,crit:.7,haste:.6,mastery:.5,hit:.3,expertise:.3}},
-  {name:'Marksmanship Hunter',cls:'hunter',spec:'marksmanship',role:'agidps',meta:76884,w:{agility:1,crit:.8,haste:.5,mastery:.5,hit:.3,expertise:.3}},
-  {name:'Survival Hunter',cls:'hunter',spec:'survival',role:'agidps',meta:76884,w:{agility:1,crit:.6,mastery:.7,haste:.5,hit:.3,expertise:.3}},
+  {name:'Beast Mastery Hunter',cls:'hunter',spec:'beastmastery',role:'agidps',meta:76884,w:{agility:1,crit:.42,haste:.35,mastery:.30,hit:.15,expertise:.15}},
+  {name:'Marksmanship Hunter',cls:'hunter',spec:'marksmanship',role:'agidps',meta:76884,w:{agility:1,crit:.45,haste:.30,mastery:.30,hit:.15,expertise:.15}},
+  {name:'Survival Hunter',cls:'hunter',spec:'survival',role:'agidps',meta:76884,w:{agility:1,crit:.35,mastery:.42,haste:.30,hit:.15,expertise:.15}},
   // Caster DPS
-  {name:'Arcane Mage',cls:'mage',spec:'arcane',role:'casterdps',meta:76885,w:{intellect:1,mastery:.75,haste:.6,crit:.5,hit:.3}},
-  {name:'Fire Mage',cls:'mage',spec:'fire',role:'casterdps',meta:76885,w:{intellect:1,crit:.9,haste:.6,mastery:.5,hit:.3}},
-  {name:'Frost Mage',cls:'mage',spec:'frost',role:'casterdps',meta:76885,w:{intellect:1,haste:.8,crit:.55,mastery:.5,hit:.3}},
-  {name:'Affliction Warlock',cls:'warlock',spec:'affliction',role:'casterdps',meta:76885,w:{intellect:1,haste:.8,mastery:.6,crit:.5,hit:.3}},
-  {name:'Demonology Warlock',cls:'warlock',spec:'demonology',role:'casterdps',meta:76885,w:{intellect:1,mastery:.9,haste:.6,crit:.5,hit:.3}},
-  {name:'Destruction Warlock',cls:'warlock',spec:'destruction',role:'casterdps',meta:76885,w:{intellect:1,mastery:.8,haste:.6,crit:.5,hit:.3}},
-  {name:'Shadow Priest',cls:'priest',spec:'shadow',role:'casterdps',meta:76885,w:{intellect:1,haste:.8,crit:.6,mastery:.5,hit:.3}},
-  {name:'Elemental Shaman',cls:'shaman',spec:'elemental',role:'casterdps',meta:76885,w:{intellect:1,haste:.8,mastery:.6,crit:.5,hit:.3}},
-  {name:'Balance Druid',cls:'druid',spec:'balance',role:'casterdps',meta:76885,w:{intellect:1,haste:.8,mastery:.6,crit:.5,hit:.3}},
+  {name:'Arcane Mage',cls:'mage',spec:'arcane',role:'casterdps',meta:76885,w:{intellect:1,mastery:.45,haste:.35,crit:.30,hit:.15}},
+  {name:'Fire Mage',cls:'mage',spec:'fire',role:'casterdps',meta:76885,w:{intellect:1,crit:.48,haste:.35,mastery:.30,hit:.15}},
+  {name:'Frost Mage',cls:'mage',spec:'frost',role:'casterdps',meta:76885,w:{intellect:1,haste:.45,crit:.32,mastery:.30,hit:.15}},
+  {name:'Affliction Warlock',cls:'warlock',spec:'affliction',role:'casterdps',meta:76885,w:{intellect:1,haste:.45,mastery:.35,crit:.30,hit:.15}},
+  {name:'Demonology Warlock',cls:'warlock',spec:'demonology',role:'casterdps',meta:76885,w:{intellect:1,mastery:.48,haste:.35,crit:.30,hit:.15}},
+  {name:'Destruction Warlock',cls:'warlock',spec:'destruction',role:'casterdps',meta:76885,w:{intellect:1,mastery:.45,haste:.35,crit:.30,hit:.15}},
+  {name:'Shadow Priest',cls:'priest',spec:'shadow',role:'casterdps',meta:76885,w:{intellect:1,haste:.45,crit:.35,mastery:.30,hit:.15}},
+  {name:'Elemental Shaman',cls:'shaman',spec:'elemental',role:'casterdps',meta:76885,w:{intellect:1,haste:.45,mastery:.35,crit:.30,hit:.15}},
+  {name:'Balance Druid',cls:'druid',spec:'balance',role:'casterdps',meta:76885,w:{intellect:1,haste:.45,mastery:.35,crit:.30,hit:.15}},
   // Healers
-  {name:'Holy Paladin',cls:'paladin',spec:'holy',role:'healer',meta:76888,w:{intellect:1,spirit:.8,haste:.7,mastery:.5,crit:.4}},
-  {name:'Discipline Priest',cls:'priest',spec:'discipline',role:'healer',meta:76888,w:{intellect:1,spirit:.7,crit:.7,mastery:.6,haste:.5}},
-  {name:'Holy Priest',cls:'priest',spec:'holy',role:'healer',meta:76888,w:{intellect:1,spirit:.7,haste:.7,mastery:.55,crit:.5}},
-  {name:'Restoration Druid',cls:'druid',spec:'restoration',role:'healer',meta:76888,w:{intellect:1,spirit:.7,haste:.8,mastery:.5,crit:.5}},
-  {name:'Restoration Shaman',cls:'shaman',spec:'restoration',role:'healer',meta:76888,w:{intellect:1,spirit:.7,haste:.7,mastery:.6,crit:.5}},
-  {name:'Mistweaver Monk',cls:'monk',spec:'mistweaver',role:'healer',meta:76888,w:{intellect:1,spirit:.7,haste:.7,crit:.6,mastery:.5}},
-  // Tanks
-  {name:'Protection Warrior',cls:'warrior',spec:'protection',role:'tank',meta:76895,w:{stamina:.5,mastery:1,parry:.6,dodge:.5,hit:.4,expertise:.4}},
-  {name:'Protection Paladin',cls:'paladin',spec:'protection',role:'tank',meta:76895,w:{stamina:.5,mastery:1,haste:.7,parry:.5,dodge:.4,hit:.4,expertise:.4}},
-  {name:'Blood Death Knight',cls:'deathknight',spec:'blood',role:'tank',meta:76895,w:{stamina:.5,mastery:1,parry:.6,dodge:.5,haste:.4,hit:.4,expertise:.4}},
-  {name:'Guardian Druid',cls:'druid',spec:'guardian',role:'tank',meta:76895,w:{agility:1,mastery:.8,dodge:.7,stamina:.5,crit:.5,hit:.4,expertise:.4}},
-  {name:'Brewmaster Monk',cls:'monk',spec:'brewmaster',role:'tank',meta:76895,w:{agility:1,mastery:.8,crit:.6,haste:.6,stamina:.5,hit:.4,expertise:.4}},
+  {name:'Holy Paladin',cls:'paladin',spec:'holy',role:'healer',meta:76888,w:{intellect:1,spirit:.45,haste:.40,mastery:.30,crit:.25}},
+  {name:'Discipline Priest',cls:'priest',spec:'discipline',role:'healer',meta:76888,w:{intellect:1,spirit:.42,crit:.40,mastery:.35,haste:.30}},
+  {name:'Holy Priest',cls:'priest',spec:'holy',role:'healer',meta:76888,w:{intellect:1,spirit:.42,haste:.40,mastery:.32,crit:.30}},
+  {name:'Restoration Druid',cls:'druid',spec:'restoration',role:'healer',meta:76888,w:{intellect:1,spirit:.42,haste:.45,mastery:.30,crit:.30}},
+  {name:'Restoration Shaman',cls:'shaman',spec:'restoration',role:'healer',meta:76888,w:{intellect:1,spirit:.42,haste:.40,mastery:.35,crit:.30}},
+  {name:'Mistweaver Monk',cls:'monk',spec:'mistweaver',role:'healer',meta:76888,w:{intellect:1,spirit:.42,haste:.40,crit:.35,mastery:.30}},
+  // Tanks (secondary stats are primary for tanks, so weights stay higher relative to stamina)
+  {name:'Protection Warrior',cls:'warrior',spec:'protection',role:'tank',meta:76895,w:{stamina:.30,mastery:.48,parry:.35,dodge:.30,hit:.20,expertise:.20}},
+  {name:'Protection Paladin',cls:'paladin',spec:'protection',role:'tank',meta:76895,w:{stamina:.30,mastery:.48,haste:.40,parry:.30,dodge:.25,hit:.20,expertise:.20}},
+  {name:'Blood Death Knight',cls:'deathknight',spec:'blood',role:'tank',meta:76895,w:{stamina:.30,mastery:.48,parry:.35,dodge:.30,haste:.25,hit:.20,expertise:.20}},
+  {name:'Guardian Druid',cls:'druid',spec:'guardian',role:'tank',meta:76895,w:{agility:1,mastery:.45,dodge:.40,stamina:.30,crit:.30,hit:.20,expertise:.20}},
+  {name:'Brewmaster Monk',cls:'monk',spec:'brewmaster',role:'tank',meta:76895,w:{agility:1,mastery:.45,crit:.35,haste:.35,stamina:.30,hit:.20,expertise:.20}},
 ];
 
 // ============================= REFORGING DATA =============================
