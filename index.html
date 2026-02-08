@@ -103,6 +103,7 @@ tr:hover td { background:rgba(88,166,255,.05); }
   <button data-tab="recommender">Gem Recommender</button>
   <button data-tab="evaluator">Socket Evaluator</button>
   <button data-tab="planner">Gear Planner</button>
+  <button data-tab="reforging">Reforging</button>
 </nav>
 
 <!-- TAB 1: SETUP & IMPORT -->
@@ -183,6 +184,43 @@ tr:hover td { background:rgba(88,166,255,.05); }
   <div class="section">
     <h2>Optimization Summary</h2>
     <div id="opt-summary"></div>
+  </div>
+</div>
+
+<!-- TAB 5: REFORGING -->
+<div id="tab-reforging" class="tab-content">
+  <div class="section">
+    <h2>Character Setup</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+      <div>
+        <label style="display:block;margin-bottom:4px;color:var(--text-dim);font-size:.85em">Race</label>
+        <select id="race-select" style="width:100%"></select>
+      </div>
+      <div>
+        <label style="display:block;margin-bottom:4px;color:var(--text-dim);font-size:.85em">Main Weapon Type</label>
+        <select id="weapon-select" style="width:100%"></select>
+      </div>
+    </div>
+    <div id="racial-bonuses" style="margin-top:10px;font-size:.85em;color:var(--accent)"></div>
+  </div>
+
+  <div class="section">
+    <h2>Current Stats &amp; Caps</h2>
+    <div id="stat-caps-display"></div>
+  </div>
+
+  <div class="section">
+    <h2>Reforge Optimization</h2>
+    <p style="font-size:.85em;color:var(--text-dim);margin-bottom:10px">Calculate optimal reforges to reach Hit/Expertise caps while maximizing your stat weights.</p>
+    <button class="btn" id="calc-reforge-btn">Calculate Optimal Reforges</button>
+    <div id="reforge-results" style="margin-top:16px"></div>
+  </div>
+
+  <div class="section">
+    <h2>Reforge Shopping List</h2>
+    <div id="reforge-shopping-list">
+      <p class="no-sockets">Run optimization to see your reforge shopping list.</p>
+    </div>
   </div>
 </div>
 </div>
@@ -382,11 +420,70 @@ const PRESETS = [
   {name:'Brewmaster Monk',cls:'monk',spec:'brewmaster',role:'tank',meta:76895,w:{agility:1,mastery:.8,crit:.6,haste:.6,stamina:.5,hit:.4,expertise:.4}},
 ];
 
+// ============================= REFORGING DATA =============================
+
+const REFORGE_RATE = 0.40; // 40% of stat value can be reforged
+
+const SECONDARY_STATS = ['hit','expertise','crit','haste','mastery','spirit','dodge','parry','pvppower','pvpresilience'];
+
+// Rating required for 1% at level 90
+const RATING_PER_PERCENT = {
+  hit: 340, expertise: 340, crit: 340, haste: 340, mastery: 340,
+  spirit: 340, dodge: 425, parry: 425
+};
+
+// Stat caps by role (rating values)
+const STAT_CAPS = {
+  melee_dps:    { hit: 2550, expertise: 2550 },           // 7.5% each
+  ranged_dps:   { hit: 2550 },                            // 7.5% hit
+  caster_dps:   { hit: 5100 },                            // 15% spell hit
+  healer:       { },                                       // No caps
+  tank:         { hit: 2550, expertise: 5100 }            // 7.5% hit, 15% expertise
+};
+
+// Race data with expertise/hit bonuses
+const RACES = {
+  human:     { name: 'Human', faction: 'alliance', expertise_weapons: ['sword','mace','1h_sword','2h_sword','1h_mace','2h_mace'], expertise_bonus: 340 },
+  dwarf:     { name: 'Dwarf', faction: 'alliance', expertise_weapons: ['mace','1h_mace','2h_mace'], expertise_bonus: 340 },
+  gnome:     { name: 'Gnome', faction: 'alliance', expertise_weapons: ['dagger','1h_sword'], expertise_bonus: 340 },
+  draenei:   { name: 'Draenei', faction: 'alliance', spell_hit_bonus: 340 },
+  night_elf: { name: 'Night Elf', faction: 'alliance' },
+  worgen:    { name: 'Worgen', faction: 'alliance' },
+  pandaren_a:{ name: 'Pandaren (Alliance)', faction: 'alliance' },
+  orc:       { name: 'Orc', faction: 'horde', expertise_weapons: ['axe','fist','1h_axe','2h_axe'], expertise_bonus: 340 },
+  troll:     { name: 'Troll', faction: 'horde', expertise_weapons: ['bow','thrown'], expertise_bonus: 340 },
+  undead:    { name: 'Undead', faction: 'horde' },
+  tauren:    { name: 'Tauren', faction: 'horde' },
+  blood_elf: { name: 'Blood Elf', faction: 'horde' },
+  goblin:    { name: 'Goblin', faction: 'horde' },
+  pandaren_h:{ name: 'Pandaren (Horde)', faction: 'horde' }
+};
+
+// Weapon types for expertise racials
+const WEAPON_TYPES = {
+  sword: 'Sword', mace: 'Mace', axe: 'Axe', dagger: 'Dagger', fist: 'Fist Weapon',
+  '1h_sword': '1H Sword', '2h_sword': '2H Sword', '1h_mace': '1H Mace', '2h_mace': '2H Mace',
+  '1h_axe': '1H Axe', '2h_axe': '2H Axe', staff: 'Staff', polearm: 'Polearm',
+  bow: 'Bow', gun: 'Gun', crossbow: 'Crossbow', wand: 'Wand', thrown: 'Thrown'
+};
+
+// Specs that convert Spirit to Hit at 1:1 ratio
+const SPIRIT_TO_HIT_SPECS = ['balance', 'elemental', 'shadow'];
+
+// Map role types to cap profiles
+const ROLE_TO_CAP_PROFILE = {
+  strdps: 'melee_dps', agidps: 'melee_dps', casterdps: 'caster_dps',
+  healer: 'healer', tank: 'tank', physdps: 'melee_dps', misc: 'healer', pvp: 'melee_dps'
+};
+
 // ============================= STATE =============================
 
 let weights = {};
-let gear = []; // [{itemId, itemName, gems:[], sockets:[], bonus:{stat,value}, fetched:bool}]
+let gear = []; // [{itemId, itemName, gems:[], sockets:[], bonus:{stat,value}, baseStats:{}, reforge:{}, fetched:bool}]
 let hasJC = false, hasEng = false, hasBS = false;
+let selectedRace = 'human';
+let selectedWeaponType = 'sword';
+let currentPreset = null;
 
 // ============================= ALGORITHMS =============================
 
@@ -476,6 +573,275 @@ function rankedJCGems(w) {
   return jcGems.map(g => ({ gem: g, score: scoreGem(g, w) })).sort((a, b) => b.score - a.score);
 }
 
+// ============================= REFORGING ALGORITHMS =============================
+
+function getCapProfile() {
+  if (!currentPreset) return STAT_CAPS.melee_dps;
+  const profile = ROLE_TO_CAP_PROFILE[currentPreset.role] || 'melee_dps';
+  return STAT_CAPS[profile];
+}
+
+function hasSpiriToHit() {
+  return currentPreset && SPIRIT_TO_HIT_SPECS.includes(currentPreset.spec);
+}
+
+function getRacialBonuses() {
+  const bonuses = { hit: 0, expertise: 0 };
+  const race = RACES[selectedRace];
+  if (!race) return bonuses;
+  
+  // Draenei 1% spell hit
+  if (race.spell_hit_bonus && currentPreset && ['casterdps', 'healer'].includes(currentPreset.role)) {
+    bonuses.hit = race.spell_hit_bonus;
+  }
+  
+  // Expertise racial for weapon type
+  if (race.expertise_weapons && race.expertise_weapons.some(w =>
+    w === selectedWeaponType || selectedWeaponType.includes(w))) {
+    bonuses.expertise = race.expertise_bonus;
+  }
+  
+  return bonuses;
+}
+
+function calculateTotalStats() {
+  const totals = {};
+  STATS.forEach(s => totals[s] = 0);
+  
+  // Sum base stats from gear
+  for (const g of gear) {
+    if (!g.baseStats) continue;
+    for (const [stat, val] of Object.entries(g.baseStats)) {
+      totals[stat] = (totals[stat] || 0) + val;
+    }
+    
+    // Add reforge adjustments
+    if (g.reforge && g.reforge.from && g.reforge.to) {
+      totals[g.reforge.from] -= g.reforge.amount;
+      totals[g.reforge.to] += g.reforge.amount;
+    }
+  }
+  
+  // Add gem stats
+  for (const g of gear) {
+    for (const gem of (g.gems || [])) {
+      if (!gem || !gem.stats) continue;
+      for (const [stat, val] of Object.entries(gem.stats)) {
+        totals[stat] = (totals[stat] || 0) + val;
+      }
+    }
+    // Add socket bonus if matched
+    if (g.bonus && g.sockets && g.gems) {
+      const matched = g.sockets.every((sc, i) => {
+        if (sc === 'meta') return g.gems[i] && g.gems[i].color === 'meta';
+        if (sc === 'prismatic') return true;
+        const validColors = SOCKET_MATCH[sc] || [];
+        return g.gems[i] && validColors.includes(g.gems[i].color);
+      });
+      if (matched) {
+        totals[g.bonus.stat] = (totals[g.bonus.stat] || 0) + g.bonus.value;
+      }
+    }
+  }
+  
+  // Add racial bonuses
+  const racials = getRacialBonuses();
+  totals.hit += racials.hit;
+  totals.expertise += racials.expertise;
+  
+  // Spirit-to-Hit conversion
+  if (hasSpiriToHit()) {
+    totals._spiritAsHit = totals.spirit || 0;
+  }
+  
+  return totals;
+}
+
+function getEffectiveHit(totals) {
+  let hit = totals.hit || 0;
+  if (hasSpiriToHit()) {
+    hit += totals.spirit || 0;
+  }
+  return hit;
+}
+
+function canReforge(item, fromStat, toStat) {
+  if (!item.baseStats) return false;
+  if (!SECONDARY_STATS.includes(fromStat) || !SECONDARY_STATS.includes(toStat)) return false;
+  if (fromStat === toStat) return false;
+  if (!item.baseStats[fromStat]) return false; // Can't reforge from a stat not on item
+  if (item.baseStats[toStat]) return false;    // Can't reforge to a stat already on item
+  return true;
+}
+
+function getReforgeAmount(item, fromStat) {
+  if (!item.baseStats || !item.baseStats[fromStat]) return 0;
+  return Math.floor(item.baseStats[fromStat] * REFORGE_RATE);
+}
+
+function findOptimalReforges() {
+  const caps = getCapProfile();
+  const results = [];
+  
+  // Reset all reforges
+  for (const g of gear) {
+    g.reforge = { from: null, to: null, amount: 0 };
+  }
+  
+  // Phase 1: Reach caps (Hit first, then Expertise)
+  const capsToReach = [];
+  if (caps.hit) capsToReach.push({ stat: 'hit', cap: caps.hit });
+  if (caps.expertise) capsToReach.push({ stat: 'expertise', cap: caps.expertise });
+  
+  for (const { stat: targetStat, cap } of capsToReach) {
+    let currentTotals = calculateTotalStats();
+    let currentVal = targetStat === 'hit' ? getEffectiveHit(currentTotals) : (currentTotals[targetStat] || 0);
+    
+    while (currentVal < cap) {
+      // Find best item to reforge toward this cap
+      let bestItem = null;
+      let bestFromStat = null;
+      let bestScore = -Infinity;
+      
+      for (const g of gear) {
+        if (g.reforge && g.reforge.from) continue; // Already reforged
+        if (!g.baseStats) continue;
+        
+        // Check if we can reforge INTO targetStat
+        if (g.baseStats[targetStat]) continue; // Target stat already on item
+        
+        // Find lowest-weight stat to reforge FROM
+        for (const fromStat of SECONDARY_STATS) {
+          if (!canReforge(g, fromStat, targetStat)) continue;
+          
+          const reforgeAmt = getReforgeAmount(g, fromStat);
+          const needed = cap - currentVal;
+          const effective = Math.min(reforgeAmt, needed);
+          
+          // Score: gain toward cap minus weighted loss
+          const fromWeight = weights[fromStat] || 0;
+          const toWeight = weights[targetStat] || 0;
+          const score = (effective * toWeight) - (reforgeAmt * fromWeight);
+          
+          if (score > bestScore) {
+            bestScore = score;
+            bestItem = g;
+            bestFromStat = fromStat;
+          }
+        }
+      }
+      
+      if (!bestItem) break; // No more items to reforge
+      
+      // Apply reforge
+      const amt = getReforgeAmount(bestItem, bestFromStat);
+      bestItem.reforge = { from: bestFromStat, to: targetStat, amount: amt };
+      
+      // Recalculate
+      currentTotals = calculateTotalStats();
+      currentVal = targetStat === 'hit' ? getEffectiveHit(currentTotals) : (currentTotals[targetStat] || 0);
+    }
+  }
+  
+  // Phase 2: Optimize remaining items (lowest weight -> highest weight)
+  for (const g of gear) {
+    if (g.reforge && g.reforge.from) continue; // Already reforged
+    if (!g.baseStats) continue;
+    
+    let bestFrom = null, bestTo = null, bestGain = 0;
+    
+    for (const fromStat of SECONDARY_STATS) {
+      if (!g.baseStats[fromStat]) continue;
+      
+      for (const toStat of SECONDARY_STATS) {
+        if (!canReforge(g, fromStat, toStat)) continue;
+        
+        // Skip if reforging into capped stat would overcap
+        const totals = calculateTotalStats();
+        if (caps[toStat]) {
+          const current = toStat === 'hit' ? getEffectiveHit(totals) : (totals[toStat] || 0);
+          if (current >= caps[toStat]) continue;
+        }
+        
+        const amt = getReforgeAmount(g, fromStat);
+        const fromW = weights[fromStat] || 0;
+        const toW = weights[toStat] || 0;
+        const gain = (amt * toW) - (amt * fromW);
+        
+        if (gain > bestGain) {
+          bestGain = gain;
+          bestFrom = fromStat;
+          bestTo = toStat;
+        }
+      }
+    }
+    
+    if (bestFrom && bestTo && bestGain > 0) {
+      g.reforge = { from: bestFrom, to: bestTo, amount: getReforgeAmount(g, bestFrom) };
+    }
+  }
+  
+  // Build results
+  for (const g of gear) {
+    if (!g.reforge || !g.reforge.from) {
+      results.push({ item: g, action: 'none', reason: g.baseStats ? 'Optimal as-is' : 'No stats' });
+    } else {
+      results.push({
+        item: g,
+        action: 'reforge',
+        from: g.reforge.from,
+        to: g.reforge.to,
+        amount: g.reforge.amount
+      });
+    }
+  }
+  
+  return results;
+}
+
+function analyzeReforgeState() {
+  const caps = getCapProfile();
+  const totals = calculateTotalStats();
+  const effectiveHit = getEffectiveHit(totals);
+  
+  const analysis = {
+    totals,
+    effectiveHit,
+    caps,
+    hitStatus: 'none',
+    expStatus: 'none',
+    recommendations: []
+  };
+  
+  if (caps.hit) {
+    const hitPct = (effectiveHit / caps.hit * 100).toFixed(1);
+    if (effectiveHit >= caps.hit) {
+      analysis.hitStatus = effectiveHit > caps.hit * 1.02 ? 'overcap' : 'capped';
+      if (effectiveHit > caps.hit + 50) {
+        analysis.recommendations.push(`Over hit cap by ${effectiveHit - caps.hit} rating - consider reforging some Hit away`);
+      }
+    } else {
+      analysis.hitStatus = 'under';
+      analysis.recommendations.push(`Need ${caps.hit - effectiveHit} more Hit to cap (${hitPct}% of cap)`);
+    }
+  }
+  
+  if (caps.expertise) {
+    const expPct = ((totals.expertise || 0) / caps.expertise * 100).toFixed(1);
+    if ((totals.expertise || 0) >= caps.expertise) {
+      analysis.expStatus = (totals.expertise || 0) > caps.expertise * 1.02 ? 'overcap' : 'capped';
+      if ((totals.expertise || 0) > caps.expertise + 50) {
+        analysis.recommendations.push(`Over expertise cap by ${(totals.expertise || 0) - caps.expertise} rating - consider reforging some away`);
+      }
+    } else {
+      analysis.expStatus = 'under';
+      analysis.recommendations.push(`Need ${caps.expertise - (totals.expertise || 0)} more Expertise to cap (${expPct}% of cap)`);
+    }
+  }
+  
+  return analysis;
+}
+
 // ============================= WOWHEAD API =============================
 
 const itemCache = new Map();
@@ -511,7 +877,20 @@ function parseItemTooltip(data) {
     bonus = { value: parseInt(bm[1]), stat };
   }
 
-  return { name: data.name || 'Unknown', sockets, bonus, quality: data.quality || 0 };
+  // Extract base stats for reforging
+  const baseStats = {};
+  // Look for stat lines like "+1234 Haste" or "+567 Critical Strike"
+  const baseStatRegex = /\+(\d{2,4})\s+(Strength|Agility|Intellect|Stamina|Hit|Expertise|Critical Strike|Haste|Mastery|Spirit|Dodge|Parry|PvP Power|PvP Resilience)(?:<|,|\s|$)/gi;
+  let sm;
+  while ((sm = baseStatRegex.exec(html)) !== null) {
+    const statName = sm[2].trim();
+    const key = STAT_FROM_TOOLTIP[statName];
+    if (key) {
+      baseStats[key] = parseInt(sm[1]);
+    }
+  }
+
+  return { name: data.name || 'Unknown', sockets, bonus, quality: data.quality || 0, baseStats };
 }
 
 async function resolveGemFromAPI(gemId) {
@@ -598,6 +977,8 @@ async function handleImport() {
       gems: [],
       sockets: [],
       bonus: null,
+      baseStats: {},
+      reforge: { from: null, to: null, amount: 0 },
       fetched: false
     });
   }
@@ -622,15 +1003,18 @@ async function handleImport() {
     g.itemName = info.name;
     g.sockets = info.sockets;
     g.bonus = info.bonus;
+    g.baseStats = info.baseStats || {};
     g.fetched = true;
     await new Promise(r => setTimeout(r, 150));
   }
 
-  status.textContent = `Imported ${data.name || 'character'} (${preset ? preset.name : cls + ' ' + spec}). ${gear.filter(g=>g.sockets.length>0).length} items with sockets found.`;
+  const itemsWithStats = gear.filter(g => g.baseStats && Object.keys(g.baseStats).length > 0).length;
+  status.textContent = `Imported ${data.name || 'character'} (${preset ? preset.name : cls + ' ' + spec}). ${gear.filter(g=>g.sockets.length>0).length} items with sockets, ${itemsWithStats} with reforge data.`;
   status.className = 'success';
 
   renderGearPlanner();
   updateRecommender();
+  updateReforgeDisplay();
   document.getElementById('jc-section').style.display = hasJC ? '' : 'none';
 }
 
@@ -701,11 +1085,13 @@ function initUI() {
       document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
       if (btn.dataset.tab === 'recommender') updateRecommender();
       if (btn.dataset.tab === 'planner') renderGearPlanner();
+      if (btn.dataset.tab === 'reforging') updateReforgeDisplay();
     });
   });
 }
 
 function applyPreset(preset) {
+  currentPreset = preset;
   weights = {};
   STATS.forEach(s => weights[s] = 0);
   for (const [s, v] of Object.entries(preset.w)) weights[s] = v;
@@ -713,6 +1099,7 @@ function applyPreset(preset) {
     inp.value = weights[inp.dataset.stat] || 0;
   });
   updateRecommender();
+  updateReforgeDisplay();
 }
 
 function gemHTML(gem, showScore) {
@@ -939,9 +1326,248 @@ function renderGearPlanner() {
   summaryDiv.innerHTML = sHtml;
 }
 
+// ============================= REFORGING UI =============================
+
+function initReforgeUI() {
+  // Populate race dropdown
+  const raceSel = document.getElementById('race-select');
+  for (const [key, race] of Object.entries(RACES)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = race.name;
+    raceSel.appendChild(opt);
+  }
+  raceSel.value = selectedRace;
+  raceSel.addEventListener('change', () => {
+    selectedRace = raceSel.value;
+    updateRacialDisplay();
+    updateReforgeDisplay();
+  });
+
+  // Populate weapon dropdown
+  const weaponSel = document.getElementById('weapon-select');
+  for (const [key, name] of Object.entries(WEAPON_TYPES)) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = name;
+    weaponSel.appendChild(opt);
+  }
+  weaponSel.value = selectedWeaponType;
+  weaponSel.addEventListener('change', () => {
+    selectedWeaponType = weaponSel.value;
+    updateRacialDisplay();
+    updateReforgeDisplay();
+  });
+
+  // Calculate button
+  document.getElementById('calc-reforge-btn').addEventListener('click', handleReforgeOptimization);
+
+  updateRacialDisplay();
+}
+
+function updateRacialDisplay() {
+  const bonusDiv = document.getElementById('racial-bonuses');
+  const bonuses = getRacialBonuses();
+  const parts = [];
+  
+  if (bonuses.hit > 0) {
+    parts.push(`+${bonuses.hit} Hit Rating (${(bonuses.hit / 340).toFixed(1)}%) from racial`);
+  }
+  if (bonuses.expertise > 0) {
+    parts.push(`+${bonuses.expertise} Expertise Rating (${(bonuses.expertise / 340).toFixed(1)}%) from racial with ${WEAPON_TYPES[selectedWeaponType] || selectedWeaponType}`);
+  }
+  if (hasSpiriToHit() && currentPreset) {
+    parts.push(`Spirit converts to Hit for ${currentPreset.name}`);
+  }
+  
+  bonusDiv.innerHTML = parts.length > 0 ? parts.join('<br>') : '<span style="color:var(--text-dim)">No racial bonuses apply</span>';
+}
+
+function updateReforgeDisplay() {
+  const capsDiv = document.getElementById('stat-caps-display');
+  
+  if (!gear.length || !gear.some(g => g.baseStats && Object.keys(g.baseStats).length > 0)) {
+    capsDiv.innerHTML = '<p class="no-sockets">Import gear on the Setup tab to see stat totals.</p>';
+    return;
+  }
+
+  const analysis = analyzeReforgeState();
+  const caps = analysis.caps;
+  
+  let html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">';
+  
+  // Hit section
+  if (caps.hit) {
+    const hitVal = analysis.effectiveHit;
+    const hitCap = caps.hit;
+    const hitPct = Math.min(100, hitVal / hitCap * 100);
+    const hitStatus = analysis.hitStatus;
+    const statusColor = hitStatus === 'capped' ? 'var(--good)' : hitStatus === 'overcap' ? 'var(--yellow)' : 'var(--bad)';
+    const statusText = hitStatus === 'capped' ? '✓ CAPPED' : hitStatus === 'overcap' ? '⚠️ OVERCAP' : `${(hitCap - hitVal)} needed`;
+    
+    html += `<div class="eval-card">
+      <h4>Hit Rating</h4>
+      <div style="display:flex;align-items:center;gap:8px;margin:8px 0">
+        <div style="flex:1;background:var(--surface);border-radius:4px;height:20px;overflow:hidden">
+          <div style="width:${Math.min(100, hitPct)}%;height:100%;background:${hitStatus === 'overcap' ? 'var(--yellow)' : hitStatus === 'capped' ? 'var(--good)' : 'var(--accent)'};transition:.3s"></div>
+        </div>
+        <span style="min-width:60px;text-align:right;font-weight:600">${hitPct.toFixed(1)}%</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.85em">
+        <span>${hitVal} / ${hitCap}</span>
+        <span style="color:${statusColor}">${statusText}</span>
+      </div>
+      ${hasSpiriToHit() ? `<div style="font-size:.8em;color:var(--text-dim);margin-top:4px">Includes ${analysis.totals.spirit || 0} Spirit as Hit</div>` : ''}
+    </div>`;
+  }
+  
+  // Expertise section
+  if (caps.expertise) {
+    const expVal = analysis.totals.expertise || 0;
+    const expCap = caps.expertise;
+    const expPct = Math.min(100, expVal / expCap * 100);
+    const expStatus = analysis.expStatus;
+    const statusColor = expStatus === 'capped' ? 'var(--good)' : expStatus === 'overcap' ? 'var(--yellow)' : 'var(--bad)';
+    const statusText = expStatus === 'capped' ? '✓ CAPPED' : expStatus === 'overcap' ? '⚠️ OVERCAP' : `${(expCap - expVal)} needed`;
+    
+    html += `<div class="eval-card">
+      <h4>Expertise Rating</h4>
+      <div style="display:flex;align-items:center;gap:8px;margin:8px 0">
+        <div style="flex:1;background:var(--surface);border-radius:4px;height:20px;overflow:hidden">
+          <div style="width:${Math.min(100, expPct)}%;height:100%;background:${expStatus === 'overcap' ? 'var(--yellow)' : expStatus === 'capped' ? 'var(--good)' : 'var(--accent)'};transition:.3s"></div>
+        </div>
+        <span style="min-width:60px;text-align:right;font-weight:600">${expPct.toFixed(1)}%</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:.85em">
+        <span>${expVal} / ${expCap}</span>
+        <span style="color:${statusColor}">${statusText}</span>
+      </div>
+    </div>`;
+  }
+  
+  html += '</div>';
+  
+  // Other secondary stats
+  html += '<h3 style="margin-top:16px">Secondary Stats</h3>';
+  html += '<div class="summary-stats">';
+  for (const stat of SECONDARY_STATS) {
+    if (stat === 'hit' || stat === 'expertise') continue;
+    const val = analysis.totals[stat] || 0;
+    if (val > 0) {
+      html += `<div class="summary-stat"><span>${STAT_LABELS[stat]}</span><span>${val}</span></div>`;
+    }
+  }
+  html += '</div>';
+  
+  // Recommendations
+  if (analysis.recommendations.length > 0) {
+    html += '<div style="margin-top:12px;padding:8px;background:var(--surface);border-radius:4px;font-size:.85em">';
+    html += '<strong style="color:var(--accent)">Recommendations:</strong><ul style="margin:4px 0 0 20px;padding:0">';
+    for (const rec of analysis.recommendations) {
+      html += `<li>${rec}</li>`;
+    }
+    html += '</ul></div>';
+  }
+  
+  capsDiv.innerHTML = html;
+}
+
+function handleReforgeOptimization() {
+  if (!gear.length || !gear.some(g => g.baseStats && Object.keys(g.baseStats).length > 0)) {
+    document.getElementById('reforge-results').innerHTML = '<p class="no-sockets">Import gear first to optimize reforges.</p>';
+    return;
+  }
+
+  const results = findOptimalReforges();
+  const beforeTotals = calculateTotalStats();
+  
+  // Reset and recalculate after optimization
+  const afterTotals = calculateTotalStats();
+  
+  let html = '<table><tr><th>Slot</th><th>Item</th><th>Current Stats</th><th>Reforge</th></tr>';
+  
+  for (const r of results) {
+    const g = r.item;
+    if (!g.baseStats || Object.keys(g.baseStats).length === 0) continue;
+    
+    const statsStr = Object.entries(g.baseStats)
+      .filter(([s,v]) => SECONDARY_STATS.includes(s))
+      .map(([s,v]) => `${STAT_LABELS[s]}: ${v}`)
+      .join(', ');
+    
+    let reforgeStr;
+    if (r.action === 'reforge') {
+      reforgeStr = `<span style="color:var(--bad)">${STAT_LABELS[r.from]}</span> → <span style="color:var(--good)">${STAT_LABELS[r.to]}</span> <span style="color:var(--text-dim)">(${r.amount})</span>`;
+    } else {
+      reforgeStr = `<span style="color:var(--text-dim)">${r.reason}</span>`;
+    }
+    
+    html += `<tr>
+      <td class="gear-slot">${g.slot}</td>
+      <td class="item-name" style="color:var(--quality-epic)">${g.itemName || `#${g.itemId}`}</td>
+      <td style="font-size:.8em">${statsStr || '—'}</td>
+      <td>${reforgeStr}</td>
+    </tr>`;
+  }
+  html += '</table>';
+  
+  // Show stat changes
+  html += '<div style="margin-top:16px"><h4>Stat Changes After Reforging</h4>';
+  html += '<div class="summary-stats">';
+  for (const stat of ['hit', 'expertise', ...SECONDARY_STATS.filter(s => s !== 'hit' && s !== 'expertise')]) {
+    const before = beforeTotals[stat] || 0;
+    const after = afterTotals[stat] || 0;
+    if (before === 0 && after === 0) continue;
+    const diff = after - before;
+    const diffStr = diff > 0 ? `<span style="color:var(--good)">+${diff}</span>` : diff < 0 ? `<span style="color:var(--bad)">${diff}</span>` : '';
+    html += `<div class="summary-stat"><span>${STAT_LABELS[stat]}</span><span>${before} → ${after} ${diffStr}</span></div>`;
+  }
+  html += '</div></div>';
+  
+  document.getElementById('reforge-results').innerHTML = html;
+  
+  // Update shopping list
+  renderReforgeShoppingList(results);
+  
+  // Refresh the caps display
+  updateReforgeDisplay();
+}
+
+function renderReforgeShoppingList(results) {
+  const container = document.getElementById('reforge-shopping-list');
+  const reforges = results.filter(r => r.action === 'reforge');
+  
+  if (reforges.length === 0) {
+    container.innerHTML = '<p style="color:var(--good)">No reforges needed - your gear is already optimized!</p>';
+    return;
+  }
+  
+  let html = '<p style="font-size:.85em;color:var(--text-dim);margin-bottom:12px">Visit the Reforger NPC and make these changes:</p>';
+  html += '<div style="display:grid;gap:8px">';
+  
+  for (const r of reforges) {
+    const g = r.item;
+    html += `<div class="eval-card" style="padding:10px">
+      <div style="font-weight:600;color:var(--quality-epic)">${g.itemName || `Item #${g.itemId}`}</div>
+      <div style="font-size:.9em;margin-top:4px">
+        <span class="gear-slot">${g.slot}</span> —
+        Reforge <span style="color:var(--bad)">${STAT_LABELS[r.from]}</span>
+        → <span style="color:var(--good)">${STAT_LABELS[r.to]}</span>
+        <span style="color:var(--text-dim)">(${r.amount} rating)</span>
+      </div>
+    </div>`;
+  }
+  
+  html += '</div>';
+  html += `<div style="margin-top:12px;font-size:.9em;color:var(--text-dim)">Total reforges: ${reforges.length} (estimated cost: ~${reforges.length * 50}g)</div>`;
+  
+  container.innerHTML = html;
+}
+
 // ============================= INIT =============================
 
 initUI();
+initReforgeUI();
 </script>
 </body>
 </html>
