@@ -85,6 +85,8 @@ tr:hover td { background:rgba(88,166,255,.05); }
 .gear-slot { color:var(--accent); font-weight:500; }
 .item-name { color:var(--quality-epic); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .no-sockets { color:var(--text-dim); font-style:italic; }
+.prof-card:hover { background:var(--card) !important; border-color:var(--accent) !important; }
+.prof-card:has(input:checked) { border-color:var(--accent) !important; background:rgba(88,166,255,.1) !important; }
 @media(max-width:700px) {
   .eval-form, .eval-results { grid-template-columns:1fr; }
   .gear-row { grid-template-columns:80px 1fr; }
@@ -124,22 +126,52 @@ tr:hover td { background:rgba(88,166,255,.05); }
   </div>
   <div class="section">
     <h2>Professions</h2>
-    <div class="prof-row">
-      <label><input type="checkbox" id="prof-jc"> Jewelcrafting</label>
-      <label><input type="checkbox" id="prof-eng"> Engineering</label>
-      <label><input type="checkbox" id="prof-bs"> Blacksmithing</label>
-      <label><input type="checkbox" id="prof-ench"> Enchanting</label>
-      <label><input type="checkbox" id="prof-inscr"> Inscription</label>
-    </div>
-    <div class="prof-row">
-      <label><input type="checkbox" id="prof-lw"> Leatherworking</label>
-      <label><input type="checkbox" id="prof-tailor"> Tailoring</label>
-      <label><input type="checkbox" id="prof-alch"> Alchemy</label>
-      <label><input type="checkbox" id="prof-mining"> Mining</label>
-      <label><input type="checkbox" id="prof-herb"> Herbalism</label>
-    </div>
-    <div class="prof-row">
-      <label><input type="checkbox" id="prof-skin"> Skinning</label>
+    <p style="font-size:.85em;color:var(--text-dim);margin-bottom:12px">Select your two professions (primary professions marked with ⭐ have gem/reforge bonuses)</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">
+      <label class="prof-card" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:.2s">
+        <input type="checkbox" id="prof-jc" style="width:16px;height:16px">
+        <span>⭐ <strong>Jewelcrafting</strong></span>
+      </label>
+      <label class="prof-card" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:.2s">
+        <input type="checkbox" id="prof-eng" style="width:16px;height:16px">
+        <span>⭐ <strong>Engineering</strong></span>
+      </label>
+      <label class="prof-card" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:.2s">
+        <input type="checkbox" id="prof-bs" style="width:16px;height:16px">
+        <span>⭐ <strong>Blacksmithing</strong></span>
+      </label>
+      <label class="prof-card" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:.2s">
+        <input type="checkbox" id="prof-ench" style="width:16px;height:16px">
+        <span><strong>Enchanting</strong></span>
+      </label>
+      <label class="prof-card" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:.2s">
+        <input type="checkbox" id="prof-inscr" style="width:16px;height:16px">
+        <span><strong>Inscription</strong></span>
+      </label>
+      <label class="prof-card" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:.2s">
+        <input type="checkbox" id="prof-lw" style="width:16px;height:16px">
+        <span><strong>Leatherworking</strong></span>
+      </label>
+      <label class="prof-card" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:.2s">
+        <input type="checkbox" id="prof-tailor" style="width:16px;height:16px">
+        <span><strong>Tailoring</strong></span>
+      </label>
+      <label class="prof-card" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:.2s">
+        <input type="checkbox" id="prof-alch" style="width:16px;height:16px">
+        <span><strong>Alchemy</strong></span>
+      </label>
+      <label class="prof-card" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:.2s">
+        <input type="checkbox" id="prof-mining" style="width:16px;height:16px">
+        <span style="color:var(--text-dim)">Mining</span>
+      </label>
+      <label class="prof-card" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:.2s">
+        <input type="checkbox" id="prof-herb" style="width:16px;height:16px">
+        <span style="color:var(--text-dim)">Herbalism</span>
+      </label>
+      <label class="prof-card" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:.2s">
+        <input type="checkbox" id="prof-skin" style="width:16px;height:16px">
+        <span style="color:var(--text-dim)">Skinning</span>
+      </label>
     </div>
   </div>
 </div>
